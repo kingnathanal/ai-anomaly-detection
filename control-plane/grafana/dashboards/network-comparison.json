@@ -109,7 +109,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  AVG(icmp_rtt_avg_ms) as value,\n  'LAN' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND icmp_ok = true\n  AND network_type = 'lan'\nGROUP BY time\nUNION ALL\nSELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  AVG(icmp_rtt_avg_ms) as value,\n  'WiFi' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND icmp_ok = true\n  AND network_type = 'wifi'\nGROUP BY time\nORDER BY time",
+          "rawSql": "SELECT\n  time_bucket('30 seconds', ts) AS time,\n  AVG(icmp_rtt_avg_ms) as value,\n  'LAN' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND icmp_ok = true\n  AND network_type = 'lan'\nGROUP BY time\nUNION ALL\nSELECT\n  time_bucket('30 seconds', ts) AS time,\n  AVG(icmp_rtt_avg_ms) as value,\n  'WiFi' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND icmp_ok = true\n  AND network_type = 'wifi'\nGROUP BY time\nORDER BY time",
           "refId": "A"
         }
       ],
@@ -203,7 +203,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  AVG(icmp_loss_pct) as value,\n  'LAN' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND network_type = 'lan'\nGROUP BY time\nUNION ALL\nSELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  AVG(icmp_loss_pct) as value,\n  'WiFi' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND network_type = 'wifi'\nGROUP BY time\nORDER BY time",
+          "rawSql": "SELECT\n  time_bucket('30 seconds', ts) AS time,\n  AVG(icmp_loss_pct) as value,\n  'LAN' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND network_type = 'lan'\nGROUP BY time\nUNION ALL\nSELECT\n  time_bucket('30 seconds', ts) AS time,\n  AVG(icmp_loss_pct) as value,\n  'WiFi' as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND network_type = 'wifi'\nGROUP BY time\nORDER BY time",
           "refId": "A"
         }
       ],
