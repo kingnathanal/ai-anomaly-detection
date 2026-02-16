@@ -365,7 +365,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - ICMP RTT' as metric,\n  AVG(t.icmp_rtt_avg_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM t.ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  t.device_id || ' - ICMP RTT' as metric,\n  AVG(t.icmp_rtt_avg_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "A"
         },
         {
@@ -376,7 +376,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - HTTP Latency' as metric,\n  AVG(t.http_latency_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  to_timestamp(FLOOR(EXTRACT(EPOCH FROM t.ts) / 30) * 30) AT TIME ZONE 'UTC' AS time,\n  t.device_id || ' - HTTP Latency' as metric,\n  AVG(t.http_latency_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "B"
         }
       ],
@@ -649,7 +649,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('10m', issued_ts) AS time,\n  status as metric,\n  COUNT(*) as value\nFROM mitigation_actions\nWHERE $__timeFilter(issued_ts)\n  AND device_id = ANY(ARRAY[$device_id])\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  date_trunc('hour', issued_ts) + INTERVAL '10 min' * FLOOR(EXTRACT(MINUTE FROM issued_ts) / 10) AS time,\n  status as metric,\n  COUNT(*) as value\nFROM mitigation_actions\nWHERE $__timeFilter(issued_ts)\n  AND device_id = ANY(ARRAY[$device_id])\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "A"
         }
       ],
