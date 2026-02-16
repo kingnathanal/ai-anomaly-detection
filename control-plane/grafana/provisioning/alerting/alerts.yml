@@ -1,0 +1,458 @@
+apiVersion: 1
+
+groups:
+  # ── Threshold Fallback Alerts ──────────────────────────────────
+  - orgId: 1
+    name: Threshold Fallback Alerts
+    folder: Anomaly Detection Alerts
+    interval: 60s
+    rules:
+      - uid: alert-lan-rtt-high
+        title: "LAN RTT High (>80ms)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: time_series
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  ts AS time,
+                  device_id as metric,
+                  icmp_rtt_avg_ms as value
+                FROM telemetry_measurements
+                WHERE $__timeFilter(ts)
+                  AND network_type = 'lan'
+                ORDER BY ts
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: mean
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [80]
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "LAN device {{ $labels.metric }} RTT exceeds 80ms (current: {{ $values.B }}ms)"
+          description: "Threshold-based fallback alert. LAN RTT baseline is ~38ms. This fires independently of the ML detector."
+        labels:
+          severity: warning
+          alert_type: threshold_fallback
+          network_type: lan
+
+      - uid: alert-wifi-rtt-high
+        title: "WiFi RTT High (>110ms)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: time_series
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  ts AS time,
+                  device_id as metric,
+                  icmp_rtt_avg_ms as value
+                FROM telemetry_measurements
+                WHERE $__timeFilter(ts)
+                  AND network_type = 'wifi'
+                ORDER BY ts
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: mean
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [110]
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "WiFi device {{ $labels.metric }} RTT exceeds 110ms (current: {{ $values.B }}ms)"
+          description: "Threshold-based fallback alert. WiFi RTT baseline is ~51ms. This fires independently of the ML detector."
+        labels:
+          severity: warning
+          alert_type: threshold_fallback
+          network_type: wifi
+
+      - uid: alert-packet-loss-high
+        title: "Packet Loss High (>5%)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: time_series
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  ts AS time,
+                  device_id as metric,
+                  icmp_loss_pct as value
+                FROM telemetry_measurements
+                WHERE $__timeFilter(ts)
+                ORDER BY ts
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: mean
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [5]
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Device {{ $labels.metric }} packet loss exceeds 5% (current: {{ $values.B }}%)"
+        labels:
+          severity: critical
+          alert_type: threshold_fallback
+
+      - uid: alert-http-errors
+        title: "HTTP Probe Failures (>20%)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: time_series
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  time_bucket('60s', ts) AS time,
+                  device_id as metric,
+                  (COUNT(*) FILTER (WHERE http_ok = false))::float / NULLIF(COUNT(*), 0) * 100 as value
+                FROM telemetry_measurements
+                WHERE $__timeFilter(ts)
+                GROUP BY 1, 2
+                ORDER BY 1
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: mean
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [20]
+        noDataState: OK
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "Device {{ $labels.metric }} HTTP error rate exceeds 20% (current: {{ $values.B }}%)"
+        labels:
+          severity: critical
+          alert_type: threshold_fallback
+
+  # ── Model Health Alerts ────────────────────────────────────────
+  - orgId: 1
+    name: Model Health Alerts
+    folder: Anomaly Detection Alerts
+    interval: 60s
+    rules:
+      - uid: alert-detector-stale
+        title: "Detector Stale — No Anomaly Events"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: table
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  now() AS time,
+                  EXTRACT(EPOCH FROM (now() - MAX(event_ts))) as value
+                FROM anomaly_events
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [600]
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Detector has not produced anomaly events for over 10 minutes"
+          description: "The detector service may have crashed or stalled. Check: sudo systemctl status detector && sudo journalctl -u detector -n 50"
+        labels:
+          severity: critical
+          alert_type: model_health
+
+      - uid: alert-detection-lag
+        title: "Detection Lag High (>5min)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: time_series
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  event_ts AS time,
+                  'detection_lag' as metric,
+                  EXTRACT(EPOCH FROM (event_ts - window_end_ts)) as value
+                FROM anomaly_events
+                WHERE event_ts > now() - INTERVAL '10 minutes'
+                ORDER BY event_ts
+          - refId: B
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: mean
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [300]
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Detection lag is {{ $values.B }}s — detector is falling behind real-time"
+          description: "The gap between window_end_ts and event_ts indicates the detector is processing windows slower than they arrive."
+        labels:
+          severity: warning
+          alert_type: model_health
+
+      - uid: alert-anomaly-rate-spike
+        title: "Anomaly Rate Spike (>10/hour)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: table
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  now() AS time,
+                  COUNT(*)::float as value
+                FROM anomaly_events
+                WHERE is_anomaly = true
+                  AND event_ts > now() - INTERVAL '1 hour'
+          - refId: B
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [10]
+        noDataState: OK
+        execErrState: Alerting
+        for: 5m
+        annotations:
+          summary: "Anomaly rate is {{ $values.B }} per hour — possible model drift or sustained incident"
+          description: "High anomaly rates may indicate model drift (needs retraining) or a genuine widespread issue affecting multiple devices."
+        labels:
+          severity: warning
+          alert_type: model_health
+
+      - uid: alert-ingestion-stale
+        title: "Ingestion Stale — No Telemetry"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: telemetry-postgres
+            model:
+              editorMode: code
+              format: table
+              rawQuery: true
+              rawSql: |
+                SELECT
+                  now() AS time,
+                  EXTRACT(EPOCH FROM (now() - MAX(received_ts))) as value
+                FROM telemetry_measurements
+          - refId: B
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+          - refId: C
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [120]
+        noDataState: Alerting
+        execErrState: Alerting
+        for: 2m
+        annotations:
+          summary: "No telemetry received for over 2 minutes"
+          description: "The ingestion pipeline may be down. Check: sudo systemctl status ingestion && sudo journalctl -u ingestion -n 50"
+        labels:
+          severity: critical
+          alert_type: model_health

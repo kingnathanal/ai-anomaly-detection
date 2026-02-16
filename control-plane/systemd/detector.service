@@ -1,0 +1,20 @@
+[Unit]
+Description=Anomaly Detector Service — Isolation Forest scoring
+After=network-online.target postgresql.service ingestion.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/control-plane/detector
+EnvironmentFile=/opt/control-plane/detector/.env
+ExecStart=/opt/control-plane/venv/bin/python /opt/control-plane/detector/detector.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=detector
+
+[Install]
+WantedBy=multi-user.target

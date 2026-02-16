@@ -1,0 +1,20 @@
+[Unit]
+Description=Telemetry Ingestion Service — MQTT to Postgres
+After=network-online.target mosquitto.service postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/control-plane/ingestion
+EnvironmentFile=/opt/control-plane/ingestion/.env
+ExecStart=/opt/control-plane/venv/bin/python /opt/control-plane/ingestion/app.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ingestion
+
+[Install]
+WantedBy=multi-user.target

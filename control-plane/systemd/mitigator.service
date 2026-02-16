@@ -1,0 +1,20 @@
+[Unit]
+Description=Mitigator Service — anomaly response controller
+After=network-online.target mosquitto.service postgresql.service detector.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/opt/control-plane/mitigator
+EnvironmentFile=/opt/control-plane/mitigator/.env
+ExecStart=/opt/control-plane/venv/bin/python /opt/control-plane/mitigator/controller.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mitigator
+
+[Install]
+WantedBy=multi-user.target

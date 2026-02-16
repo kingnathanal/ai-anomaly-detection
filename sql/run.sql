@@ -1,0 +1,2 @@
+GRANT ALL ON ALL TABLES IN SCHEMA public TO telemetry_user;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO telemetry_user;

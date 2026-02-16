@@ -1,0 +1,25 @@
+[Unit]
+Description=Edge Probe Agent — latency/jitter/loss telemetry
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kingnathanal
+Group=kingnathanal
+WorkingDirectory=/opt/edge-agent
+EnvironmentFile=/opt/edge-agent/.env
+ExecStart=/opt/edge-agent/venv/bin/python /opt/edge-agent/agent.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=edge-probe
+
+# Hardening
+NoNewPrivileges=false
+ProtectSystem=strict
+ReadWritePaths=/opt/edge-agent
+
+[Install]
+WantedBy=multi-user.target

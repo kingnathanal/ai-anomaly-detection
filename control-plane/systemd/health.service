@@ -1,0 +1,20 @@
+[Unit]
+Description=Health Check Endpoint for Edge Probes
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/opt/control-plane/health
+EnvironmentFile=/opt/control-plane/health/.env
+ExecStart=/opt/control-plane/health/venv/bin/gunicorn \
+    --bind 0.0.0.0:8080 \
+    --workers 2 \
+    --timeout 30 \
+    --access-logfile - \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
