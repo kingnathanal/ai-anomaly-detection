@@ -48,5 +48,13 @@ HTTP_TARGETS: dict[str, str] = {
 ACTIVE_TARGET_ID: str = _env("ACTIVE_TARGET_ID", "primary")
 HTTP_TIMEOUT_S: int = int(_env("HTTP_TIMEOUT_S", "10"))
 
+# ── Bandwidth estimate ──────────────────────────────────────────
+# Small file download to estimate throughput. Runs every BANDWIDTH_INTERVAL
+# probe cycles (default 30 = every ~5 min at 10s intervals).
+BANDWIDTH_URL: str = _env("BANDWIDTH_URL",
+                          "https://speed.cloudflare.com/__down?bytes=1000000")
+BANDWIDTH_INTERVAL: int = int(_env("BANDWIDTH_INTERVAL", "30"))
+BANDWIDTH_TIMEOUT_S: int = int(_env("BANDWIDTH_TIMEOUT_S", "15"))
+
 # ── Logging ─────────────────────────────────────────────────────
 LOG_LEVEL: str = _env("LOG_LEVEL", "INFO")

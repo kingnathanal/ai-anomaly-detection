@@ -47,6 +47,9 @@ _state: dict[str, Any] = {
 
 _shutdown = threading.Event()
 
+# Bandwidth probe runs every N telemetry cycles (default: every 30 cycles = 5 min at 10s interval)
+_bw_cycle_counter = 0
+
 
 # ────────────────────────────────────────────────────────────────
 #  Probe helpers
@@ -145,12 +148,40 @@ def probe_http(url: str, timeout_s: int) -> dict[str, Any]:
         return {"ok": False, "url": url, "status": 0, "latency_ms": 0}
 
 
+def probe_bandwidth(url: str, timeout_s: int = 10) -> dict[str, Any]:
+    """Download a small file and estimate bandwidth in Mbps.
+
+    Uses a ~1 MB test file. Runs every BANDWIDTH_INTERVAL_S cycles
+    to avoid polluting latency measurements.
+    """
+    try:
+        start = time.monotonic()
+        resp = requests.get(url, timeout=timeout_s, stream=True)
+        content = resp.content
+        elapsed_s = time.monotonic() - start
+        if elapsed_s <= 0:
+            return {"ok": False, "mbps": 0.0, "bytes": 0, "elapsed_s": 0.0}
+        size_bytes = len(content)
+        mbps = round((size_bytes * 8) / (elapsed_s * 1_000_000), 2)
+        return {
+            "ok": resp.status_code == 200,
+            "mbps": mbps,
+            "bytes": size_bytes,
+            "elapsed_s": round(elapsed_s, 3),
+        }
+    except requests.RequestException as exc:
+        log.warning("bandwidth probe failed url=%s err=%s", url, exc)
+        return {"ok": False, "mbps": 0.0, "bytes": 0, "elapsed_s": 0.0}
+
+
 # ────────────────────────────────────────────────────────────────
 #  Telemetry assembly
 # ────────────────────────────────────────────────────────────────
 
 def build_telemetry() -> dict[str, Any]:
     """Run all probes and assemble the telemetry payload."""
+    global _bw_cycle_counter
+
     with _state_lock:
         target_id = _state["active_target_id"]
         http_targets = dict(_state["http_targets"])
@@ -164,7 +195,16 @@ def build_telemetry() -> dict[str, Any]:
         "ok": False, "url": "", "status": 0, "latency_ms": 0,
     }
 
-    return {
+    # Bandwidth estimate every BANDWIDTH_INTERVAL cycles
+    bandwidth = None
+    _bw_cycle_counter += 1
+    if _bw_cycle_counter >= config.BANDWIDTH_INTERVAL:
+        _bw_cycle_counter = 0
+        bandwidth = probe_bandwidth(config.BANDWIDTH_URL, config.BANDWIDTH_TIMEOUT_S)
+        log.info("bandwidth probe mbps=%.2f bytes=%d elapsed=%.3fs",
+                 bandwidth["mbps"], bandwidth["bytes"], bandwidth["elapsed_s"])
+
+    payload: dict[str, Any] = {
         "ts": _now_iso(),
         "device_id": config.DEVICE_ID,
         "network_type": config.NETWORK_TYPE,
@@ -176,6 +216,10 @@ def build_telemetry() -> dict[str, Any]:
             "http": http,
         },
     }
+    if bandwidth is not None:
+        payload["metrics"]["bandwidth"] = bandwidth
+
+    return payload
 
 
 # ────────────────────────────────────────────────────────────────

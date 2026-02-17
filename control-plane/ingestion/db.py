@@ -59,12 +59,14 @@ INSERT INTO telemetry_measurements (
     ts, device_id, network_type, target_id, interval_s,
     icmp_ok, icmp_rtt_min_ms, icmp_rtt_avg_ms, icmp_rtt_max_ms, icmp_loss_pct,
     dns_ok, dns_latency_ms,
-    http_ok, http_latency_ms, http_status, http_url
+    http_ok, http_latency_ms, http_status, http_url,
+    bandwidth_mbps
 ) VALUES (
     %(ts)s, %(device_id)s, %(network_type)s, %(target_id)s, %(interval_s)s,
     %(icmp_ok)s, %(icmp_rtt_min_ms)s, %(icmp_rtt_avg_ms)s, %(icmp_rtt_max_ms)s, %(icmp_loss_pct)s,
     %(dns_ok)s, %(dns_latency_ms)s,
-    %(http_ok)s, %(http_latency_ms)s, %(http_status)s, %(http_url)s
+    %(http_ok)s, %(http_latency_ms)s, %(http_status)s, %(http_url)s,
+    %(bandwidth_mbps)s
 )
 """
 
@@ -75,6 +77,7 @@ def insert_telemetry(payload: dict[str, Any]) -> None:
     icmp = metrics.get("icmp", {})
     dns = metrics.get("dns", {})
     http = metrics.get("http", {})
+    bw = metrics.get("bandwidth", {})
 
     row = {
         "ts": payload["ts"],
@@ -93,6 +96,7 @@ def insert_telemetry(payload: dict[str, Any]) -> None:
         "http_latency_ms": http.get("latency_ms"),
         "http_status": http.get("status"),
         "http_url": http.get("url"),
+        "bandwidth_mbps": bw.get("mbps") if bw else None,
     }
 
     with get_conn() as conn:

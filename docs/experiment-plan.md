@@ -4,6 +4,32 @@
 
 ---
 
+## Network Environment
+
+The testbed shares a residential internet connection with other household
+devices. To account for potential bandwidth contention inflating latency
+measurements, we capture a periodic bandwidth estimate alongside telemetry.
+
+**Bandwidth Probe:**
+- Every **30 probe cycles** (~5 minutes), each Pi downloads a ~1 MB file from
+  Cloudflare's speed test CDN and records the estimated throughput in Mbps.
+- Stored in the `bandwidth_mbps` column of `telemetry_measurements`.
+- This lets us correlate latency spikes with bandwidth dips — if RTT jumps
+  while bandwidth drops, the anomaly may be congestion rather than a gray failure.
+
+**Experiment Best Practices:**
+- Minimize heavy network usage (streaming, downloads) during fault injection runs.
+- Note any known network activity in the experiment log.
+- Use the bandwidth data post-hoc to filter or annotate results where congestion
+  may have influenced measurements.
+
+**Static Network Facts** (document once before experiments):
+- ISP type and rated speed (e.g., "cable 300/20 Mbps")
+- Router model and WiFi standard (e.g., "802.11ac, 5 GHz")
+- Number of other devices typically on the network
+
+---
+
 ## Pre-Experiment Checklist
 
 - [ ] Confirm 24h of gap-free telemetry for all 6 devices

@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS telemetry_measurements (
     http_ok         BOOLEAN,
     http_latency_ms DOUBLE PRECISION,
     http_status     INT,
-    http_url        TEXT
+    http_url        TEXT,
+    bandwidth_mbps  DOUBLE PRECISION
 );
 
 -- ── anomaly_events ──────────────────────────────────────────────
