@@ -283,12 +283,107 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  network_type,\n  ROUND(AVG(icmp_rtt_avg_ms)::numeric, 2) as avg_icmp_rtt_ms,\n  ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY icmp_rtt_avg_ms)::numeric, 2) as p95_icmp_rtt_ms,\n  ROUND(AVG(http_latency_ms)::numeric, 2) as avg_http_latency_ms,\n  ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY http_latency_ms)::numeric, 2) as p95_http_latency_ms,\n  ROUND(AVG(dns_latency_ms)::numeric, 2) as avg_dns_latency_ms,\n  ROUND(AVG(icmp_loss_pct)::numeric, 3) as avg_loss_pct,\n  COUNT(*) as sample_count\nFROM telemetry_measurements\nWHERE $__timeFilter(ts)\nGROUP BY network_type\nORDER BY network_type",
+          "rawSql": "SELECT\n  network_type,\n  ROUND(AVG(icmp_rtt_avg_ms)::numeric, 2) as avg_icmp_rtt_ms,\n  ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY icmp_rtt_avg_ms)::numeric, 2) as p95_icmp_rtt_ms,\n  ROUND(AVG(http_latency_ms)::numeric, 2) as avg_http_latency_ms,\n  ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY http_latency_ms)::numeric, 2) as p95_http_latency_ms,\n  ROUND(AVG(dns_latency_ms)::numeric, 2) as avg_dns_latency_ms,\n  ROUND(AVG(icmp_loss_pct)::numeric, 3) as avg_loss_pct,\n  ROUND(AVG(bandwidth_mbps)::numeric, 2) as avg_bandwidth_mbps,\n  COUNT(*) as sample_count\nFROM telemetry_measurements\nWHERE $__timeFilter(ts)\nGROUP BY network_type\nORDER BY network_type",
           "refId": "A"
         }
       ],
       "title": "Network Performance Summary",
       "type": "table"
+    },
+    {
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "tooltip": false,
+              "viz": false,
+              "legend": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": 300000,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "Mbits"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 4,
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "lastNotNull",
+            "min",
+            "max"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  ts AS time,\n  bandwidth_mbps as value,\n  'LAN - ' || device_id as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND bandwidth_mbps IS NOT NULL\n  AND network_type = 'lan'\nUNION ALL\nSELECT\n  ts AS time,\n  bandwidth_mbps as value,\n  'WiFi - ' || device_id as metric\nFROM telemetry_measurements\nWHERE\n  $__timeFilter(ts)\n  AND bandwidth_mbps IS NOT NULL\n  AND network_type = 'wifi'\nORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "title": "LAN vs WiFi - Bandwidth Estimate",
+      "type": "timeseries"
     }
   ],
   "refresh": "30s",
