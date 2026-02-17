@@ -9,7 +9,7 @@ groups:
     rules:
       - uid: alert-lan-rtt-high
         title: "LAN RTT High (>80ms)"
-        condition: C
+        condition: B
         data:
           - refId: A
             relativeTimeRange:
@@ -18,38 +18,25 @@ groups:
             datasourceUid: telemetry-postgres
             model:
               editorMode: code
-              format: time_series
+              format: table
               rawQuery: true
               rawSql: |
                 SELECT
-                  ts AS time,
-                  device_id as metric,
-                  icmp_rtt_avg_ms as value
+                  device_id,
+                  AVG(icmp_rtt_avg_ms) as value
                 FROM telemetry_measurements
-                WHERE $__timeFilter(ts)
+                WHERE ts > now() - INTERVAL '5 minutes'
                   AND network_type = 'lan'
-                ORDER BY ts
+                  AND icmp_rtt_avg_ms IS NOT NULL
+                GROUP BY device_id
           - refId: B
             relativeTimeRange:
               from: 300
               to: 0
             datasourceUid: __expr__
             model:
-              type: reduce
-              expression: A
-              reducer: mean
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [0]
-          - refId: C
-            relativeTimeRange:
-              from: 300
-              to: 0
-            datasourceUid: __expr__
-            model:
               type: threshold
-              expression: B
+              expression: A
               conditions:
                 - evaluator:
                     type: gt
@@ -58,7 +45,7 @@ groups:
         execErrState: Alerting
         for: 2m
         annotations:
-          summary: "LAN device {{ $labels.metric }} RTT exceeds 80ms (current: {{ $values.B }}ms)"
+          summary: "LAN device {{ $labels.device_id }} RTT exceeds 80ms (current: {{ $values.A }}ms)"
           description: "Threshold-based fallback alert. LAN RTT baseline is ~38ms. This fires independently of the ML detector."
         labels:
           severity: warning
@@ -67,7 +54,7 @@ groups:
 
       - uid: alert-wifi-rtt-high
         title: "WiFi RTT High (>110ms)"
-        condition: C
+        condition: B
         data:
           - refId: A
             relativeTimeRange:
@@ -76,38 +63,25 @@ groups:
             datasourceUid: telemetry-postgres
             model:
               editorMode: code
-              format: time_series
+              format: table
               rawQuery: true
               rawSql: |
                 SELECT
-                  ts AS time,
-                  device_id as metric,
-                  icmp_rtt_avg_ms as value
+                  device_id,
+                  AVG(icmp_rtt_avg_ms) as value
                 FROM telemetry_measurements
-                WHERE $__timeFilter(ts)
+                WHERE ts > now() - INTERVAL '5 minutes'
                   AND network_type = 'wifi'
-                ORDER BY ts
+                  AND icmp_rtt_avg_ms IS NOT NULL
+                GROUP BY device_id
           - refId: B
             relativeTimeRange:
               from: 300
               to: 0
             datasourceUid: __expr__
             model:
-              type: reduce
-              expression: A
-              reducer: mean
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [0]
-          - refId: C
-            relativeTimeRange:
-              from: 300
-              to: 0
-            datasourceUid: __expr__
-            model:
               type: threshold
-              expression: B
+              expression: A
               conditions:
                 - evaluator:
                     type: gt
@@ -116,7 +90,7 @@ groups:
         execErrState: Alerting
         for: 2m
         annotations:
-          summary: "WiFi device {{ $labels.metric }} RTT exceeds 110ms (current: {{ $values.B }}ms)"
+          summary: "WiFi device {{ $labels.device_id }} RTT exceeds 110ms (current: {{ $values.A }}ms)"
           description: "Threshold-based fallback alert. WiFi RTT baseline is ~51ms. This fires independently of the ML detector."
         labels:
           severity: warning
@@ -125,7 +99,7 @@ groups:
 
       - uid: alert-packet-loss-high
         title: "Packet Loss High (>5%)"
-        condition: C
+        condition: B
         data:
           - refId: A
             relativeTimeRange:
@@ -134,37 +108,24 @@ groups:
             datasourceUid: telemetry-postgres
             model:
               editorMode: code
-              format: time_series
+              format: table
               rawQuery: true
               rawSql: |
                 SELECT
-                  ts AS time,
-                  device_id as metric,
-                  icmp_loss_pct as value
+                  device_id,
+                  AVG(icmp_loss_pct) as value
                 FROM telemetry_measurements
-                WHERE $__timeFilter(ts)
-                ORDER BY ts
+                WHERE ts > now() - INTERVAL '5 minutes'
+                  AND icmp_loss_pct IS NOT NULL
+                GROUP BY device_id
           - refId: B
             relativeTimeRange:
               from: 300
               to: 0
             datasourceUid: __expr__
             model:
-              type: reduce
-              expression: A
-              reducer: mean
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [0]
-          - refId: C
-            relativeTimeRange:
-              from: 300
-              to: 0
-            datasourceUid: __expr__
-            model:
               type: threshold
-              expression: B
+              expression: A
               conditions:
                 - evaluator:
                     type: gt
@@ -173,54 +134,39 @@ groups:
         execErrState: Alerting
         for: 2m
         annotations:
-          summary: "Device {{ $labels.metric }} packet loss exceeds 5% (current: {{ $values.B }}%)"
+          summary: "Device {{ $labels.device_id }} packet loss exceeds 5% (current: {{ $values.A }}%)"
         labels:
           severity: critical
           alert_type: threshold_fallback
 
       - uid: alert-http-errors
         title: "HTTP Probe Failures (>20%)"
-        condition: C
+        condition: B
         data:
           - refId: A
             relativeTimeRange:
-              from: 300
+              from: 3600
               to: 0
             datasourceUid: telemetry-postgres
             model:
               editorMode: code
-              format: time_series
+              format: table
               rawQuery: true
               rawSql: |
                 SELECT
-                  time_bucket('60s', ts) AS time,
-                  device_id as metric,
+                  device_id,
                   (COUNT(*) FILTER (WHERE http_ok = false))::float / NULLIF(COUNT(*), 0) * 100 as value
                 FROM telemetry_measurements
-                WHERE $__timeFilter(ts)
-                GROUP BY 1, 2
-                ORDER BY 1
+                WHERE ts > now() - INTERVAL '1 hour'
+                GROUP BY device_id
           - refId: B
             relativeTimeRange:
-              from: 300
-              to: 0
-            datasourceUid: __expr__
-            model:
-              type: reduce
-              expression: A
-              reducer: mean
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [0]
-          - refId: C
-            relativeTimeRange:
-              from: 300
+              from: 3600
               to: 0
             datasourceUid: __expr__
             model:
               type: threshold
-              expression: B
+              expression: A
               conditions:
                 - evaluator:
                     type: gt
@@ -229,7 +175,7 @@ groups:
         execErrState: Alerting
         for: 2m
         annotations:
-          summary: "Device {{ $labels.metric }} HTTP error rate exceeds 20% (current: {{ $values.B }}%)"
+          summary: "Device {{ $labels.device_id }} HTTP error rate exceeds 20% (current: {{ $values.A }}%)"
         labels:
           severity: critical
           alert_type: threshold_fallback
@@ -295,7 +241,7 @@ groups:
 
       - uid: alert-detection-lag
         title: "Detection Lag High (>5min)"
-        condition: C
+        condition: B
         data:
           - refId: A
             relativeTimeRange:
@@ -304,37 +250,22 @@ groups:
             datasourceUid: telemetry-postgres
             model:
               editorMode: code
-              format: time_series
+              format: table
               rawQuery: true
               rawSql: |
                 SELECT
-                  event_ts AS time,
                   'detection_lag' as metric,
-                  EXTRACT(EPOCH FROM (event_ts - window_end_ts)) as value
+                  AVG(EXTRACT(EPOCH FROM (event_ts - window_end_ts))) as value
                 FROM anomaly_events
                 WHERE event_ts > now() - INTERVAL '10 minutes'
-                ORDER BY event_ts
           - refId: B
             relativeTimeRange:
               from: 600
               to: 0
             datasourceUid: __expr__
             model:
-              type: reduce
-              expression: A
-              reducer: mean
-              conditions:
-                - evaluator:
-                    type: gt
-                    params: [0]
-          - refId: C
-            relativeTimeRange:
-              from: 600
-              to: 0
-            datasourceUid: __expr__
-            model:
               type: threshold
-              expression: B
+              expression: A
               conditions:
                 - evaluator:
                     type: gt
