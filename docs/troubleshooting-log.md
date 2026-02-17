@@ -200,6 +200,59 @@ Once Issues #3/#4/#5 were resolved and telemetry flowed again, the detector bega
 
 ---
 
+## Issue #7 — TimescaleDB Extension Missing / `time_bucket` Errors
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-02-16 |
+| **Severity** | Dashboard panel errors |
+| **Component** | Grafana dashboards + PostgreSQL |
+| **Symptom** | Several Grafana dashboard panels showed errors: `function time_bucket(unknown, timestamp with time zone) does not exist`. |
+
+### Root Cause
+
+Dashboard queries used `time_bucket()`, a TimescaleDB function, but the PostgreSQL instance only had the vanilla extension. TimescaleDB was not installed.
+
+### Fix
+
+1. Installed `timescaledb-2-postgresql-16` package on EC2
+2. Added `timescaledb` to `shared_preload_libraries` in `postgresql.conf`
+3. Restarted PostgreSQL
+4. Created extension: `CREATE EXTENSION IF NOT EXISTS timescaledb;`
+5. Converted `telemetry_measurements` and `anomaly_events` to hypertables (required changing PKs to composite: `(id, ts)` and `(id, event_ts)`)
+
+### Lesson
+
+- TimescaleDB must be installed and configured as a shared preload library **before** `CREATE EXTENSION` will work.
+- Converting a table to a hypertable requires the time column to be part of the primary key (or the PK must be dropped/replaced with a composite key).
+
+---
+
+## Change Log — Non-Issue Changes
+
+### 2026-02-17: Bandwidth Probe Added
+
+Added a periodic bandwidth estimate to all edge agents. Every ~5 minutes
+(30 probe cycles), each Pi downloads a ~1 MB file from Cloudflare's speed
+test CDN and records the estimated throughput in Mbps.
+
+**Why:** The testbed shares a residential internet connection. Bandwidth
+contention from other devices could inflate latency measurements, making
+normal data look anomalous. The bandwidth column lets us correlate latency
+spikes with bandwidth dips post-hoc and annotate experiment results.
+
+**Changes:**
+- `edge-agent/agent.py` — new `probe_bandwidth()` function
+- `edge-agent/config.py` — `BANDWIDTH_URL`, `BANDWIDTH_INTERVAL`, `BANDWIDTH_TIMEOUT_S`
+- `control-plane/ingestion/db.py` — stores `bandwidth_mbps` column
+- `telemetry_measurements` — new `bandwidth_mbps DOUBLE PRECISION` column (NULL when not sampled)
+- Grafana dashboards — bandwidth panels added to Latency Overview, Experiment, and Network Comparison
+- `docs/experiment-plan.md` — Network Environment section added
+
+**Baseline values observed:** ~1.5 Mbps from all 6 nodes (1 MB test file).
+
+---
+
 ## Summary of paho-mqtt v2 Migration Pitfalls
 
 All of Issues #3, #4, and #5 stem from the same migration gap. Here is a
@@ -229,6 +282,13 @@ sudo -u postgres psql -d telemetry -c "
     ROUND(EXTRACT(EPOCH FROM (now() - MAX(ts)))::numeric, 0) as secs_ago
   FROM telemetry_measurements
   GROUP BY device_id ORDER BY last_seen DESC;"
+
+# Check latest bandwidth readings
+sudo -u postgres psql -d telemetry -c "
+  SELECT device_id, ts, bandwidth_mbps
+  FROM telemetry_measurements
+  WHERE bandwidth_mbps IS NOT NULL
+  ORDER BY ts DESC LIMIT 6;"
 
 # Check MQTT broker connections
 sudo journalctl -u mosquitto -n 20 --no-pager

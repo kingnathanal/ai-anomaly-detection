@@ -54,6 +54,7 @@ ssh ubuntu@ec2     # 54.198.26.122 (private: 172.31.64.97)
 | Ingestion  | `/opt/control-plane/ingestion/` | `/opt/control-plane/venv/`           | `ingestion`        | `/opt/control-plane/ingestion/.env` |
 | Health     | `/opt/control-plane/health/`    | `/opt/control-plane/health/venv/`    | `health`           | `/opt/control-plane/health/.env` |
 | Detector   | `/opt/control-plane/detector/`  | `/opt/control-plane/venv/`           | `detector`         | `/opt/control-plane/detector/.env` |
+| EMA Det.   | `/opt/control-plane/detector/`  | `/opt/control-plane/venv/`           | `ema-detector`     | `/opt/control-plane/detector/.env` |
 | Mitigator  | `/opt/control-plane/mitigator/` | `/opt/control-plane/venv/`           | `mitigator`        | `/opt/control-plane/mitigator/.env` |
 | Postgres   | (system package)                | —                                    | `postgresql`       | `pg_hba.conf` (local only) |
 | Grafana    | (system package)                | —                                    | `grafana-server`   | `/etc/grafana/grafana.ini` |
@@ -97,11 +98,11 @@ sudo journalctl -u edge-probe -f
 
 ```bash
 # Start all services
-sudo systemctl enable mosquitto health ingestion detector mitigator
-sudo systemctl start mosquitto health ingestion detector mitigator
+sudo systemctl enable mosquitto health ingestion detector ema-detector mitigator
+sudo systemctl start mosquitto health ingestion detector ema-detector mitigator
 
 # Check status
-sudo systemctl status mosquitto health ingestion detector mitigator
+sudo systemctl status mosquitto health ingestion detector ema-detector mitigator
 
 # Restart a single service
 sudo systemctl restart ingestion
@@ -146,9 +147,23 @@ ORDER BY device_id;
 
 | Table                    | Purpose                           |
 |--------------------------|-----------------------------------|
-| `telemetry_measurements` | Raw telemetry from all probes     |
-| `anomaly_events`         | Isolation Forest detection events |
+| `telemetry_measurements` | Raw telemetry from all probes (hypertable) |
+| `anomaly_events`         | Isolation Forest + EMA detection events (hypertable) |
 | `mitigation_actions`     | Issued commands and their status  |
+
+### Key Columns — `telemetry_measurements`
+
+| Column | Type | Notes |
+|--------|------|-------|
+| `ts` | timestamptz | Timestamp from device |
+| `received_ts` | timestamptz | Server-side insert time |
+| `device_id` | text | e.g., `pi03-lan` |
+| `network_type` | text | `lan` or `wifi` |
+| `icmp_rtt_avg_ms` | double precision | Average ICMP round-trip time |
+| `icmp_loss_pct` | double precision | Packet loss percentage |
+| `dns_latency_ms` | double precision | DNS resolution time |
+| `http_latency_ms` | double precision | HTTP GET latency |
+| `bandwidth_mbps` | double precision | Periodic bandwidth estimate (~every 5 min, NULL otherwise) |
 
 ## Grafana
 
@@ -248,6 +263,9 @@ HTTP_URL_PRIMARY=http://54.198.26.122:8080/health
 HTTP_URL_BACKUP=https://1.1.1.1
 ACTIVE_TARGET_ID=primary
 HTTP_TIMEOUT_S=10
+BANDWIDTH_URL=https://speed.cloudflare.com/__down?bytes=1000000
+BANDWIDTH_INTERVAL=30
+BANDWIDTH_TIMEOUT_S=15
 LOG_LEVEL=INFO
 EOF"
 
@@ -264,10 +282,14 @@ ssh kingnathanal@${NODE} 'sudo cp /tmp/edge-probe.service /etc/systemd/system/ &
 ```bash
 # From your workstation (Mac):
 for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
-  scp edge-agent/agent.py edge-agent/config.py kingnathanal@${node}:/opt/edge-agent/
-  ssh kingnathanal@${node} 'sudo systemctl restart edge-probe'
+  scp -i ~/.ssh/remote-key.pem edge-agent/agent.py edge-agent/config.py kingnathanal@${node}:/tmp/
+  ssh -i ~/.ssh/remote-key.pem kingnathanal@${node} \
+    'sudo cp /tmp/agent.py /tmp/config.py /opt/edge-agent/ && sudo rm -f /opt/edge-agent/__pycache__/*.pyc && sudo systemctl restart edge-probe'
 done
 ```
+
+> **Important:** Always clear `__pycache__/*.pyc` when deploying updated `.py` files.
+> Python may load stale bytecode otherwise (see Issue #5).
 
 ### Control Plane
 
@@ -282,7 +304,11 @@ ssh ubuntu@ec2 'sudo systemctl restart health'
 
 # Detector
 scp control-plane/detector/*.py ubuntu@ec2:/opt/control-plane/detector/
-ssh ubuntu@ec2 'sudo systemctl restart detector'
+ssh ubuntu@ec2 'sudo rm -f /opt/control-plane/detector/__pycache__/*.pyc && sudo systemctl restart detector'
+
+# EMA Detector
+scp control-plane/detector/ema_detector.py ubuntu@ec2:/opt/control-plane/detector/
+ssh ubuntu@ec2 'sudo rm -f /opt/control-plane/detector/__pycache__/*.pyc && sudo systemctl restart ema-detector'
 
 # Mitigator
 scp control-plane/mitigator/*.py ubuntu@ec2:/opt/control-plane/mitigator/
@@ -352,6 +378,13 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
 ```
 
+### Bandwidth probe not recording
+1. Check the agent is running the updated code: `grep "probe_bandwidth" /opt/edge-agent/agent.py`
+2. Bandwidth fires every 30 cycles (~5 min). Wait at least 5 min after restart.
+3. Check agent logs: `sudo journalctl -u edge-probe | grep bandwidth`
+4. Verify the download URL is reachable: `curl -o /dev/null -w "%{time_total}" https://speed.cloudflare.com/__down?bytes=1000000`
+5. Check DB: `sudo -u postgres psql -d telemetry -c "SELECT device_id, ts, bandwidth_mbps FROM telemetry_measurements WHERE bandwidth_mbps IS NOT NULL ORDER BY ts DESC LIMIT 6;"`
+
 ---
 
 ## Health Endpoint
@@ -391,3 +424,9 @@ Backup/failover target: `https://1.1.1.1` (Cloudflare — always reachable).
 | 2026-02-15 | Deployed health service on EC2            | Own venv, gunicorn on port 8080          |
 | 2026-02-15 | Deployed edge agents on all 6 Pis         | All reporting telemetry successfully     |
 | 2026-02-15 | Added ICMP inbound rule to EC2 SG         | Ping probes now return 0% loss           |
+| 2026-02-16 | Fixed paho-mqtt v2 callbacks (Issues #3-5)| All agents + ingestion updated           |
+| 2026-02-16 | Deployed Isolation Forest detector on EC2 | BASELINE_HOURS=28 (temporary)            |
+| 2026-02-16 | Installed TimescaleDB on EC2              | v2.25.0, both main tables → hypertables |
+| 2026-02-16 | Deployed Grafana alert rules              | 8 rules: 4 threshold + 4 model health   |
+| 2026-02-17 | Added bandwidth probe to edge agents      | ~1MB Cloudflare download every ~5 min    |
+| 2026-02-17 | Added bandwidth panels to 3 dashboards    | Latency, Experiment, Network Comparison  |
