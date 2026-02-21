@@ -28,6 +28,14 @@ measurements, we capture a periodic bandwidth estimate alongside telemetry.
 - Router model and WiFi standard (e.g., "802.11ac, 5 GHz")
 - Number of other devices typically on the network
 
+**Node-Specific Observations:**
+- **pi00-wifi** exhibits higher packet loss (~0.26% vs ~0.1% for pi01/pi02-wifi)
+  and elevated WiFi retry count (982). Likely positioned farther from the router
+  or experiencing more interference. This is natural WiFi variability and is
+  documented as-is — it provides useful heterogeneity data showing how the
+  detector handles nodes with different baseline reliability profiles.
+- LAN nodes (pi03-pi05) show 0% packet loss consistently.
+
 ---
 
 ## Pre-Experiment Checklist
