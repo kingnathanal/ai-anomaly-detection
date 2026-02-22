@@ -182,7 +182,8 @@ def create_mqtt_client() -> mqtt.Client:
     def _on_message(_c: mqtt.Client, _ud: Any, msg: mqtt.MQTTMessage) -> None:
         try:
             payload = json.loads(msg.payload.decode())
-        except (json.JSONDecodeError, UnicodeDecodeError):
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            log.warning("bad status payload topic=%s err=%s", msg.topic, exc)
             return
         handle_status_ack(payload)
 
