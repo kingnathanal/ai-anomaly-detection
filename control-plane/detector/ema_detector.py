@@ -175,7 +175,7 @@ def score_window(
     # Anomaly if any metric exceeds Z-score threshold
     max_z_metric = max(zscores, key=lambda k: abs(zscores[k]))
     max_z = abs(zscores[max_z_metric])
-    is_anomaly = max_z > ZSCORE_THRESHOLD
+    is_anomaly = bool(max_z > ZSCORE_THRESHOLD)
 
     # Build features dict with Z-scores and EMA state for debugging
     scored_features = {
@@ -191,8 +191,8 @@ def score_window(
         "device_id": device_id,
         "target_id": target_id,
         "model_version": MODEL_VERSION,
-        "anomaly_score": round(max_z, 6),
-        "threshold": ZSCORE_THRESHOLD,
+        "anomaly_score": float(round(max_z, 6)),
+        "threshold": float(ZSCORE_THRESHOLD),
         "is_anomaly": is_anomaly,
         "window_start_ts": window_start,
         "window_end_ts": window_end,
