@@ -84,33 +84,49 @@ Run ~45 minutes apart to allow system to settle between runs.
 | **Planned start** | ~1 hr after system reset (~22:00Z) |
 | **Notes** | First canonical run. All 6 nodes. Interface auto-detection active. |
 
-### Experiment 2 *(pending)*
+### Experiment 2 *(pending — severe fault)*
 
 | Field | Detail |
 |-------|--------|
 | **Status** | Pending |
 | **Planned start** | ~45 min after Exp 1 completes (~22:59Z) |
-| **Notes** | Identical parameters to Exp 1 — replication run. |
+| **Delay** | **200ms ± 40ms** |
+| **Loss** | **5%** |
+| **Notes** | Severe fault. Expected faster MTTD (larger signal). Tests upper detection bound. |
 
-### Experiment 3 *(pending)*
+Launch command:
+```bash
+# On each node:
+cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 200 -j 40 -l 5 > /tmp/exp2-pi00.log 2>&1
+```
+
+### Experiment 3 *(pending — subtle fault)*
 
 | Field | Detail |
 |-------|--------|
 | **Status** | Pending |
 | **Planned start** | ~45 min after Exp 2 completes (~23:58Z) |
-| **Notes** | Identical parameters to Exp 1 & 2 — third replication. |
+| **Delay** | **50ms ± 10ms** |
+| **Loss** | **1%** |
+| **Notes** | Subtle/borderline fault. Tests detection floor. May not trigger all nodes — that's a valid result. |
 
-### Expected Metrics (per experiment)
+Launch command:
+```bash
+# On each node:
+cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 50 -j 10 -l 1 > /tmp/exp3-pi00.log 2>&1
+```
 
-| Metric | Expected Value |
-|--------|----------------|
-| Baseline HTTP latency | ~80 ms |
-| HTTP latency during fault | ~280 ms (+100ms netem) |
-| HTTP latency after failover | ~80 ms (backup EC2, no netem) |
-| Impact reduction | ~70–75% HTTP latency reduction |
-| Detection MTTD | ~90–120 s (based on setup run D: 104 s) |
-| Mitigation lag | ~250–300 s from fault start |
-| False alert rate | ~0.26 alerts/hr (LAN) / ~0.60 alerts/hr (WiFi) |
+### Expected Metrics
+
+| Metric | Exp 1 (100ms/2%) | Exp 2 (200ms/5%) | Exp 3 (50ms/1%) |
+|--------|-----------------|-----------------|-----------------|
+| Baseline HTTP latency | ~80ms | ~80ms | ~80ms |
+| HTTP latency during fault | ~280ms | ~380ms | ~130ms |
+| HTTP latency after failover | ~80ms | ~80ms | ~80ms |
+| Impact reduction (est.) | ~72% | ~79% | ~38% |
+| Detection MTTD (est.) | ~49–92s | ~30–60s (faster) | ~90–180s (slower/borderline) |
+| Mitigation lag (est.) | ~148–208s | ~120–180s | ~200–300s |
+| Notes | Baseline ✅ done | Larger signal, faster | May not detect all nodes |
 
 ### Pre-Experiment Checklist
 
