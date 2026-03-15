@@ -430,3 +430,13 @@ Backup/failover target: `https://1.1.1.1` (Cloudflare — always reachable).
 | 2026-02-16 | Deployed Grafana alert rules              | 8 rules: 4 threshold + 4 model health   |
 | 2026-02-17 | Added bandwidth probe to edge agents      | ~1MB Cloudflare download every ~5 min    |
 | 2026-02-17 | Added bandwidth panels to 3 dashboards    | Latency, Experiment, Network Comparison  |
+| 2026-02-16 | Deployed EMA/Z-score detector on EC2      | `ema-detector.service`; model_version=ema-zscore-v1 |
+| 2026-02-16 | Deployed Model Comparison dashboard       | 11-panel IF vs EMA side-by-side Grafana dashboard |
+| 2026-02-22 | Deployed mitigator MQTT warning fix       | Log malformed JSON payloads instead of silent drop |
+| 2026-03-02 | pi01-wifi went offline                    | Node unresponsive; ~5-day gap in telemetry (Mar 2–7) |
+| 2026-03-07 | Rebooted pi01-wifi; node back online      | Telemetry resumed; EMA detector warmup ~20 min |
+| 2026-03-07 | Fixed numpy type casting in EMA detector  | `numpy.bool_`/`float64` → `bool()`/`float()` before Postgres INSERT; cleared `__pycache__` |
+| 2026-03-07 | Tuned IF threshold p97.5 → p99.0          | Reduced false alert rate from ~7.9/hr to ~1/hr |
+| 2026-03-10 | Deployed fault injection scripts to all 6 Pis | `netem_apply.sh`, `netem_clear.sh`, `scenarios.sh` → `/opt/edge-agent/fault_injection/`; inert until run |
+| 2026-03-15 | Rebooted pi02-wifi (elevated packet loss) | 0% loss confirmed after reboot; 0.68% avg resolved |
+| 2026-03-15 | Expanded experiment plan to 2×3 design    | All 6 nodes now have planned experiments (was 4); ~3.5 hr window |
