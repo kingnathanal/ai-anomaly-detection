@@ -49,22 +49,29 @@ See `docs/troubleshooting-log.md` Issues #9 and #10 for details on bugs fixed.
 
 ## Canonical Paper Experiments
 
-Three identical runs with a fully-correct, stable configuration.
-All 6 nodes faulted. Separate failover EC2. Interface auto-detected.
-Run ~45 minutes apart to allow system to settle between runs.
+Three experiments with **varying fault severity** to characterize detection sensitivity across a range of conditions. All experiments use the same nodes, timing structure, and infrastructure — only the fault parameters change.
 
-### Configuration (all 3 experiments)
+All 6 nodes faulted. Separate failover EC2. Interface auto-detected. ~45 minutes apart to allow system to settle between runs.
+
+### Configuration (all 3 experiments — shared)
 
 | Setting | Value |
 |---------|-------|
 | Nodes | All 6 (pi00–pi02 WiFi on `wlan0`, pi03–pi05 LAN on `eth0`) |
-| Scenario | Standard: delay 100ms ± 20ms for 5 min + loss 2% for 3 min |
+| Scenario timing | 2m baseline + 5m delay + 2m recovery + 3m loss + 2m recovery = **14 min** |
 | Primary endpoint | `http://54.198.26.122:8080/health` |
 | Failover endpoint | `http://34.226.196.133:8080/health` (separate EC2, netem-free) |
 | netem scoping | `PRIMARY_IP=54.198.26.122` only |
 | Interface | Auto-detected from hostname (`*wifi*` → `wlan0`, else `eth0`) |
-| Total duration | 14 min per run |
-| Gap between runs | ~45 min (edge agents reset to primary between runs) |
+| Gap between runs | ~45 min (edge agents restarted to reset failover state) |
+
+### Fault Parameters (varies per experiment)
+
+| Experiment | Delay | Jitter | Loss | Purpose |
+|------------|-------|--------|------|---------|
+| **Exp 1** ✅ | 100ms | ±20ms | 2% | Moderate/realistic — baseline for comparison |
+| **Exp 2** | 200ms | ±40ms | 5% | Severe — larger signal, expected faster MTTD |
+| **Exp 3** | 50ms | ±10ms | 1% | Subtle/borderline — tests detection floor |
 
 ### Scenario Phases
 

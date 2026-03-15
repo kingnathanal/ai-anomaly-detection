@@ -1,7 +1,7 @@
 # Blog Post Outline — AI-Based Latency Anomaly Detection at the Edge
 
 > Working title: *"Detecting Gray Failures in Edge Networks with Raspberry Pis and Isolation Forest"*
-> **Status:** Outline updated post-Exp 4. Final numbers pending 3 canonical experiments (~22:00–23:44Z tonight).
+> **Status:** Outline updated post-Exp 1. Final numbers pending Exp 2 (22:59Z) and Exp 3 (~23:58Z) tonight.
 
 ---
 
@@ -63,17 +63,18 @@
 - Measuring impact reduction: HTTP latency during fault vs. after failover to clean EC2
 - **Key insight:** with a co-located backup you can't measure this cleanly — the separate failover EC2 was essential
 
-## 7. Results *(fill after 3 canonical experiments complete)*
-- **Experiments:** 3 identical replications, ~45 min apart, all 6 nodes, same parameters
-- **MTTD:** [X]s mean, [Y]s std across 3 runs and 6 nodes — *preliminary from setup: ~104s on LAN nodes*
-- **False alert rate:** LAN ~0.26 alerts/hr, WiFi ~0.60 alerts/hr (WiFi naturally jitterier)
-- **Impact reduction:** [Z]% mean — *preliminary from setup run: ~72% (80ms baseline → 278ms fault → 78ms post-failover)*
-- **LAN vs Wi-Fi:** LAN detected reliably; WiFi higher false alert rate due to natural wireless variance
+## 7. Results *(fill after Exp 2 & 3 complete)*
+- **Experiments:** 3 runs with varying fault severity — moderate (100ms/2%), severe (200ms/5%), subtle (50ms/1%)
+- **MTTD:** decreases with fault severity — Exp 1 LAN: 49s, WiFi: 49–92s. Exp 2 expected faster, Exp 3 borderline.
+- **False alert rate:** LAN ~0.26 alerts/hr, WiFi ~0.60 alerts/hr (measured over 26 days)
+- **Impact reduction:** ~72% LAN, ~65% WiFi (Exp 1 measured). Consistent across severities once failover triggers.
+- **Time to recovery:** automated failover ~158s vs organic ~309s (pi02-wifi, no mitigation) — 2× faster
+- **Detection floor:** Exp 3 (50ms/1%) will show which nodes/conditions fall below the detection threshold
 - Grafana screenshots showing:
   - Probe Endpoint Tracking: the crossover moment when nodes switch from primary → failover
   - Anomaly Detection: IF score crossing threshold with fault annotation
   - HTTP latency before/during/after with failover marker
-- **Consistency claim:** standard deviation across 3 runs < [threshold] — this is the reproducibility argument
+- **Key chart:** MTTD vs fault severity bar chart across all 3 experiments (the sensitivity curve)
 
 ## 8. Lessons Learned
 - **Co-located backup is a trap:** our first 3 setup runs used a backup on the same EC2 (different port). Looked fine in testing — but `tc netem` scoped to the primary IP degraded both endpoints. Impact reduction was unmeasurable. The fix: deploy a completely separate EC2.
@@ -113,23 +114,27 @@
 - [ ] **LAN vs WiFi comparison** — Network Comparison dashboard, showing ~80ms LAN vs ~110ms WiFi
 - [ ] **IF anomaly score during baseline** — Anomaly Detection dashboard, scores well below threshold (0.68) — proves low false alert rate
 
-### Per-Experiment Visuals (3 canonical experiments)
+### Per-Experiment Visuals (3 experiments — varying severity)
 
 For **each experiment**, capture:
 
-1. **The fault** — HTTP latency spiking at delay injection (~80ms → ~280ms)
-2. **The detection** — IF anomaly score crossing threshold (score ~0.77 > threshold ~0.68)
-3. **The crossover** — Probe Endpoint Tracking dashboard showing nodes switching from `primary` → `backup`
-4. **The recovery** — HTTP latency dropping back to ~80ms on the failover EC2
+1. **The fault** — HTTP latency spike at delay injection
+2. **The detection** — IF anomaly score crossing threshold
+3. **The crossover** — Probe Endpoint Tracking showing nodes switching primary → backup
+4. **The recovery** — Latency drop back to baseline on failover EC2
 
 Best Grafana view: **Latency Overview + Probe Endpoint Tracking**, time range `[T-3min to T+12min]`.
+
+**Note severity-specific expectations:**
+- Exp 2 (200ms/5%): expect sharper spike, faster detection, cleaner crossover
+- Exp 3 (50ms/1%): expect subtler spike, slower/partial detection — capture whether pi02-wifi detects or misses again
 
 ### Results & Analysis (after all 3 experiments)
 
 - [ ] **MTTD table** — 3 experiments × 6 nodes, mean ± std per node type (LAN/WiFi)
 - [ ] **Impact reduction table** — baseline / during-fault / post-failover latency per experiment
 - [ ] **False alert rate** — LAN ~0.26/hr, WiFi ~0.60/hr (already measured, 26 days of data)
-- [ ] **Consistency chart** — MTTD standard deviation across 3 runs (the reproducibility claim)
+- [ ] **Consistency chart** — MTTD across all 3 experiments (the sensitivity curve: faster detection at higher severity)
 - [ ] **Probe Endpoint Tracking screenshot** — showing the failover crossover moment clearly
 
 ### Code Snippets to Include
