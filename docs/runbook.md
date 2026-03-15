@@ -448,10 +448,11 @@ FROM telemetry_measurements
 GROUP BY device_id ORDER BY device_id;
 ```
 
-**Note — what doesn't exist yet:**
-- There is no "box plot" / distribution panel — `LAN vs WiFi - ICMP RTT` is a **time series**, not a box plot. The `Network Performance Summary` table is the closest tabular comparison.
-- There is no dedicated "pi00-wifi vs pi01-wifi" comparison panel — use `LAN vs WiFi - Packet Loss` with a filter, or export a Postgres query for the side-by-side.
-- There is no "EMA max Z-score" single-panel view — use `Per-Metric Z-Scores — $device` and select each WiFi node separately.
+**Additional panels now available (built 2026-03-15):**
+- **RTT distribution (bar chart):** `LAN vs WiFi Comparison` → `Per-Node RTT Distribution` — shows the spread of RTT values across all nodes as a bar chart.
+- **Pi4 vs Pi5 comparison (time series):** `LAN vs WiFi Comparison` → `Pi4 vs Pi5 — RTT Comparison` — direct overlay of pi00-wifi (Pi 4) vs pi01/pi02-wifi (Pi 5) RTT.
+- **EMA peak Z-score stat:** `Model Comparison — IF vs EMA` → `EMA Peak Z-Score` — single-tile max Z-score, top of the Overview row.
+- **Model Agreement table:** `Model Comparison — IF vs EMA` → `Model Agreement — $device` — fixed 2026-03-15; uses `date_trunc('minute')` join so IF and EMA window timestamps align correctly.
 
 ---
 
@@ -553,5 +554,9 @@ docs/
 | 2026-03-07 | Fixed numpy type casting in EMA detector  | `numpy.bool_`/`float64` → `bool()`/`float()` before Postgres INSERT; cleared `__pycache__` |
 | 2026-03-07 | Tuned IF threshold p97.5 → p99.0          | Reduced false alert rate from ~7.9/hr to ~1/hr |
 | 2026-03-10 | Deployed fault injection scripts to all 6 Pis | `netem_apply.sh`, `netem_clear.sh`, `scenarios.sh` → `/opt/edge-agent/fault_injection/`; inert until run |
-| 2026-03-15 | Rebooted pi02-wifi (elevated packet loss) | 0% loss confirmed after reboot; 0.68% avg resolved |
-| 2026-03-15 | Expanded experiment plan to 2×3 design    | All 6 nodes now have planned experiments (was 4); ~3.5 hr window |
+| 2026-03-15 | Rebooted pi02-wifi (elevated packet loss)          | 0% loss confirmed after reboot; 0.68% avg resolved |
+| 2026-03-15 | Expanded experiment plan to 2×3 design             | All 6 nodes now have planned experiments (was 4); ~3.5 hr window |
+| 2026-03-15 | Built 3 missing Grafana panels                     | `Per-Node RTT Distribution` (bar), `Pi4 vs Pi5 RTT` (timeseries) in LAN vs WiFi Comparison; `EMA Peak Z-Score` stat in Model Comparison |
+| 2026-03-15 | Fixed 98 dashboard issues (P0+P1)                  | All 11 dashboards: descriptions, units, thresholds, template vars; fixed threshold ordering on latency-overview and model-comparison |
+| 2026-03-15 | Fixed `pq: operator is not unique` in Model Comparison | Added `::timestamptz` casts to `$__timeTo()`/`$__timeFrom()` in EXTRACT queries (panels id=2, id=7) |
+| 2026-03-15 | Fixed Model Agreement panel (no data)              | Replaced exact window timestamp JOIN with `date_trunc('minute', window_end_ts)` — IF/EMA run ~20s apart so exact match always returned 0 rows |
