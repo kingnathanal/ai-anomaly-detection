@@ -414,6 +414,103 @@ Backup/failover target: `https://1.1.1.1` (Cloudflare — always reachable).
 
 ---
 
+## Visual Documentation Guide
+
+This section lists every screenshot and visual to capture for the blog, paper, and presentation.
+Screenshots are organized by **when** they should be taken.
+
+---
+
+### Tier 1 — Capture Now (Baseline, Available Today)
+
+These visuals show the healthy system and can be captured any time before experiments.
+
+| # | What to Capture | Dashboard / Source | Panel / View | Story It Tells |
+|---|----------------|--------------------|--------------|----------------|
+| B1 | All-node baseline RTT (48h) | Latency Overview | RTT avg per device, time range: last 48h | "This is what normal looks like" |
+| B2 | LAN vs WiFi latency comparison | Network Comparison | Side-by-side RTT/HTTP/DNS box plots | LAN ~39ms vs WiFi ~54ms baseline gap |
+| B3 | Anomaly score during clean baseline | Anomaly Detection | IF score time series, all 6 nodes, last 24h | Scores stay below threshold — low false alert rate |
+| B4 | EMA Z-score during clean baseline | Model Comparison | EMA max Z-score panel, last 24h | Compare EMA baseline noise level |
+| B5 | Node status / data freshness table | Any dashboard | `SELECT device_id, MAX(ts), COUNT(*)` from Postgres | All 6 nodes active, data volume |
+| B6 | 27-day telemetry growth | Postgres query | Row count + DB size query | Demonstrates system stability over time |
+| B7 | **Photo of Pi tower** | Physical hardware | Camera — all 6 Pis in tower, Ethernet + WiFi | Shows the actual testbed hardware |
+| B8 | Architecture diagram | `docs/testbed-architecture.excalidraw` | Export → PNG from excalidraw.com | High-level system overview for readers |
+| B9 | Pi 4 vs Pi 5 baseline comparison | Network Comparison | pi00-wifi vs pi01-wifi RTT/loss side-by-side | Hardware-driven baseline difference |
+
+---
+
+### Tier 2 — Capture During Each Experiment
+
+Take these screenshots **during the fault injection window** of each experiment.
+Open Grafana before starting. Set time range to "last 15 minutes" and auto-refresh to 10s.
+
+| # | What to Capture | Dashboard | When to Capture | Story It Tells |
+|---|----------------|-----------|-----------------|----------------|
+| E1 | RTT spike at fault injection moment | Latency Overview | ~1 min after `netem_apply.sh` | Clear visual of injected fault |
+| E2 | ICMP loss_pct jump (loss experiments only) | Latency Overview | During Exp 03, 04, 05, 06 | Loss fault is visible in raw metrics |
+| E3 | IF anomaly score rising | Anomaly Detection | When score first crosses threshold | MTTD moment — the "aha" frame |
+| E4 | EMA Z-score rising | Model Comparison | When EMA first flags | Compare which model fired first |
+| E5 | Both models together on one screen | Model Comparison | Peak of fault window | IF vs EMA detection comparison |
+| E6 | `scenarios.sh` terminal output | Terminal on Pi | During/after automated scenario | Ground truth timestamps (save as text too) |
+| E7 | Mitigation command received (if triggered) | Model Comparison or logs | When mitigator fires | End-to-end loop completing |
+
+---
+
+### Tier 3 — Capture After All Experiments
+
+Post-analysis visuals. Most require data from completed experiments.
+
+| # | What to Capture | Source | Story It Tells |
+|---|----------------|--------|----------------|
+| A1 | Full experiment run timeline | Experiment/Fault Injection dashboard | Fault phases + anomaly flags overlaid on same chart |
+| A2 | MTTD bar chart (IF vs EMA, per experiment) | Calculated from Postgres + ground truth CSV | Core result — headline metric |
+| A3 | LAN vs WiFi MTTD comparison | Derived from A2 | Does link type affect detection speed? |
+| A4 | False alert rate table | `anomaly_events` during baseline window | Model reliability during normal operation |
+| A5 | Feature importance during delay fault | Feature Window Explorer dashboard | Which features drove IF detection |
+| A6 | Feature importance during loss fault | Feature Window Explorer dashboard | Different feature signature for loss vs delay |
+| A7 | Anomaly score trajectory (fault → recovery) | Anomaly Detection | Set time range around one full experiment run |
+| A8 | Model agreement/disagreement table | Model Comparison dashboard | When IF and EMA disagree — what does it mean? |
+| A9 | Pi 4 vs Pi 5 MTTD comparison | Calculated from A2 | Hardware effect on detection sensitivity |
+| A10 | Mitigation impact: before/after latency | Latency Overview | Show latency drop after failover/set_interval |
+
+---
+
+### Grafana Export Tips
+
+```bash
+# Time ranges for screenshots — use these for consistency across all visuals:
+# Baseline panels:    last 24h or last 7d
+# Per-experiment:     custom range: [experiment_start - 5min] to [experiment_end + 5min]
+# Full experiment run: [T+0 - 3 min] to [T+30 min] for a single experiment
+# Post-analysis:      custom range spanning all 6 experiments
+
+# Export a Grafana panel as PNG (right-click panel → "Inspect" → "Panel JSON")
+# Or use the share icon on any panel for a direct image link
+
+# Save screenshots to: docs/screenshots/<tier>/<experiment_id>-<panel-name>.png
+# Example: docs/screenshots/during/exp01-if-score-rising.png
+```
+
+---
+
+### Screenshot Filing Convention
+
+```
+docs/
+└── screenshots/
+    ├── baseline/       ← Tier 1 (B1–B9, capture now)
+    ├── during/         ← Tier 2 (E1–E7, one subfolder per experiment)
+    │   ├── exp01-lan-delay/
+    │   ├── exp02-wifi-delay/
+    │   ├── exp03-lan-loss/
+    │   ├── exp04-wifi-loss/
+    │   ├── exp05-lan-full/
+    │   └── exp06-wifi-full/
+    └── results/        ← Tier 3 (A1–A10, post-analysis)
+```
+
+---
+
 ## Deployment History
 
 | Date       | Action                                    | Notes                                    |

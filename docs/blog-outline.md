@@ -85,16 +85,86 @@
 
 ---
 
-## Assets to Collect During Experiments
-- [ ] Photo(s) of Raspberry Pi cluster setup
-- [ ] Architecture diagram (clean version for the blog)
-- [ ] Grafana screenshots: baseline, anomaly detection, mitigation
-- [ ] Result tables: MTTD per fault type, false alert rate, impact reduction
-- [ ] Code snippets: feature windowing, Isolation Forest training, mitigation flow
-- [ ] Timeline graphic of a full experiment run (baseline → fault → detection → mitigation → recovery)
+## Assets to Collect
+
+### Architecture & Setup (Collect Before Experiments)
+
+- [ ] **Architecture diagram PNG** — export `docs/testbed-architecture.excalidraw` to PNG via excalidraw.com
+- [ ] **Photo of Pi tower** — all 6 Pis racked together, cables visible, ideally with LEDs active
+- [ ] **Grafana home screen** — showing all dashboards listed, proves system is operational
+- [ ] **Node status screenshot** — Latency Overview dashboard, all 6 nodes active, last 10 min
+
+### Baseline Visuals (Collect Before Experiments)
+
+- [ ] **48h baseline RTT trace** — Latency Overview, all 6 devices, clean flat lines showing normal operation
+- [ ] **LAN vs WiFi comparison** — Network Comparison dashboard, box plots or distributions showing ~39ms LAN vs ~54ms WiFi
+- [ ] **Pi 4 vs Pi 5 baseline difference** — pi00-wifi vs pi01-wifi side-by-side (packet loss, retry counts) — illustrates hardware confound
+- [ ] **IF anomaly score during baseline** — Anomaly Detection dashboard, 24h view, scores well below threshold — proves low false alert rate before experiments
+
+### Per-Experiment Visuals (Collect During Each of 6 Experiments)
+
+For **each experiment**, capture a 3-panel screenshot set:
+
+1. **The fault** — RTT or loss metric spiking with a visible inflection point at injection time
+2. **The detection** — anomaly score crossing threshold; include both IF and EMA in one frame if possible
+3. **The recovery** — score returning to baseline after `netem_clear.sh`
+
+Best Grafana view: **Model Comparison dashboard**, set time range to `[T-3min to T+12min]` around each experiment.
+
+### Results & Analysis (Collect After All Experiments)
+
+- [ ] **MTTD bar chart** — 6 experiments × 2 models = 12 bars, grouped by experiment. This is the headline result figure.
+- [ ] **LAN vs WiFi MTTD comparison** — grouped bar: delay/loss/full × LAN/WiFi
+- [ ] **False alert rate comparison** — IF vs EMA, per node type (LAN / WiFi / Pi4-WiFi)
+- [ ] **Feature importance heatmap** — Feature Window Explorer: which features triggered during delay vs loss faults
+- [ ] **Full scenario timeline** — Exp 05 or 06, annotated with fault phases, showing both detection events and recovery
+- [ ] **Mitigation before/after** — RTT before and after failover command applied (if mitigation triggers)
+- [ ] **Model agreement table** — how often did IF and EMA agree vs disagree, and what happened in disagreements
+
+### Code Snippets to Include
+
+- [ ] Feature windowing (`control-plane/detector/features.py`) — the 9-feature vector construction
+- [ ] Isolation Forest training call (5-6 lines from `detector.py`)
+- [ ] EMA/Z-score scoring logic (the core scoring loop from `ema_detector.py`)
+- [ ] Fault injection command: `sudo tc qdisc add dev wlan0 root netem delay 100ms 20ms`
+- [ ] Mitigation payload example (from `docs/payload_schema.md`)
+
+### Data to Export for Charts (Postgres Queries)
+
+```sql
+-- MTTD per experiment (fill in ground truth timestamps after each run)
+SELECT
+  ae.device_id,
+  ae.model_version,
+  MIN(ae.event_ts) AS first_detection,
+  -- subtract fault_start_ts from ground truth log
+  EXTRACT(EPOCH FROM MIN(ae.event_ts) - '<fault_start_ts>'::timestamptz) AS mttd_seconds
+FROM anomaly_events ae
+WHERE ae.event_ts BETWEEN '<exp_start>' AND '<exp_end>'
+  AND ae.device_id = '<target_node>'
+  AND ae.is_anomaly = true
+GROUP BY ae.device_id, ae.model_version;
+
+-- False alert rate during baseline (alerts per hour, per model)
+SELECT
+  model_version,
+  device_id,
+  COUNT(*) FILTER (WHERE is_anomaly) AS anomaly_count,
+  EXTRACT(EPOCH FROM (MAX(event_ts) - MIN(event_ts))) / 3600.0 AS hours_observed,
+  ROUND(COUNT(*) FILTER (WHERE is_anomaly) /
+    NULLIF(EXTRACT(EPOCH FROM (MAX(event_ts) - MIN(event_ts))) / 3600.0, 0), 2)
+    AS alerts_per_hour
+FROM anomaly_events
+WHERE event_ts BETWEEN '<baseline_start>' AND '<baseline_end>'
+GROUP BY model_version, device_id
+ORDER BY model_version, device_id;
+```
+
+---
 
 ## Publishing Notes
 - Target audience: software engineers, SREs, ML practitioners, grad students
 - Tone: technical but accessible — explain ML concepts without assuming deep background
 - Length: ~2000-3000 words + diagrams/screenshots
 - Potential platforms: personal blog, Medium, dev.to, Hashnode
+- **Key differentiators vs. other ML posts:** real hardware, real network faults, two-model comparison, LAN vs WiFi analysis, Pi 4 vs Pi 5 hardware confound

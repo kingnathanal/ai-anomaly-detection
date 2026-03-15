@@ -399,6 +399,52 @@ comparison from the same time window.
 
 ---
 
+## Visuals Capture Checklist
+
+These screenshots and exports are the raw material for the blog, paper, and presentation.
+See the full guide in `docs/runbook.md → Visual Documentation Guide` for panel details.
+
+### Before Experiments (Capture Now)
+
+- [ ] **B1** — All-node baseline RTT time series (48h, Latency Overview dashboard)
+- [ ] **B2** — LAN vs WiFi comparison box plots (Network Comparison dashboard)
+- [ ] **B3** — IF anomaly score during clean baseline — all 6 nodes (Anomaly Detection)
+- [ ] **B4** — EMA Z-score during clean baseline (Model Comparison dashboard)
+- [ ] **B7** — **Photo of Pi tower** (physical camera)
+- [ ] **B8** — Architecture diagram exported to PNG (open `testbed-architecture.excalidraw` → export)
+- [ ] **B9** — pi00-wifi vs pi01-wifi baseline side-by-side (Pi 4 vs Pi 5 difference)
+
+### During Each Experiment
+
+For each of the 6 experiments, capture at these moments:
+
+- [ ] **E1** — RTT spike visible (~60s after `netem_apply.sh`)
+- [ ] **E2** — Packet loss % jump (loss experiments only: Exp 03, 04, 05, 06)
+- [ ] **E3** — IF score crossing threshold (the MTTD moment)
+- [ ] **E4** — EMA Z-score crossing threshold (compare timing with E3)
+- [ ] **E5** — Both models visible simultaneously at peak anomaly
+- [ ] **E6** — `scenarios.sh` terminal output saved as text file (ground truth)
+
+### After All Experiments
+
+- [ ] **A1** — Full experiment run timeline with fault phases + anomaly overlaid
+- [ ] **A2** — MTTD bar chart: IF vs EMA, all 6 experiments
+- [ ] **A3** — LAN vs WiFi MTTD comparison (grouped bar chart)
+- [ ] **A4** — False alert rate table: IF vs EMA during baseline
+- [ ] **A5/A6** — Feature importance: delay fault vs loss fault
+- [ ] **A7** — Anomaly score trajectory for one full experiment (fault → recovery arc)
+- [ ] **A10** — Before/after latency showing mitigation impact
+
+### Save Screenshots To
+
+```
+docs/screenshots/baseline/      ← pre-experiment
+docs/screenshots/during/expNN/  ← one folder per experiment
+docs/screenshots/results/       ← post-analysis
+```
+
+---
+
 ## Commands Quick Reference
 
 ```bash
