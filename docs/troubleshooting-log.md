@@ -564,3 +564,41 @@ For production deployment, **Option 3 (per-device-type grouping)** is the pragma
 ### Lesson
 
 Per-node threshold calibration is the right default for heterogeneous edge fleets. However, it is only as good as the baseline it was trained on. A single noisy or atypical baseline window can permanently raise one node's detection floor. In production, either (a) use per-device-type group thresholds, or (b) implement online threshold adaptation. Never use a single global threshold across mixed LAN/WiFi fleets — the false-positive rate on wireless nodes will be unacceptably high.
+
+---
+
+## Issue #11 — Contaminated Baseline Inflates Thresholds After Detector Restart
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-03-15 |
+| **Severity** | Experiment confound (Exp 4 MTTD unmeasurable) |
+| **Component** | `detector.py` threshold calibration + `.env` THRESHOLD_PERCENTILE |
+| **Symptom** | During Exp 4 (100ms/2%, 30s scoring), IF scores reached 0.72–0.74 for LAN and 0.67–0.71 for WiFi but failed to cross the newly-calibrated thresholds (0.75–0.76 LAN, 0.71 WiFi). No detections fired for the entire 5-minute delay phase. |
+| **Root Cause** | Two compounding factors: (1) The detector was restarted at 23:18Z to apply `SCORE_INTERVAL_S=30`, causing it to retrain on a 24-hour rolling baseline window that now included fault-injection data from Exp 1, 2, and 3. The fault-phase anomaly scores (~0.70–0.77) inflated the calibration distribution, raising the p99 threshold by ~+0.07 above the original clean-baseline thresholds. (2) `.env` was previously set to `THRESHOLD_PERCENTILE=99.0` (vs code default of 97.5), compounding the inflation. |
+| **Fix Applied** | Lowered `THRESHOLD_PERCENTILE` to `95.0` in `.env` and restarted detector at 23:37:58Z. New thresholds dropped to ~0.48–0.61, and all 6 nodes detected on the next scoring cycle (23:38:36Z). |
+| **Impact on Exp 4** | MTTD is not cleanly measurable. First 5 min of fault phase: no detection. Post-recalibration detection fired during recovery-1, not during the active fault window. Exp 4 results should be treated as confounded and the MTTD scoring-interval comparison should use Exp 5. |
+
+### Root Cause Deep Dive
+
+The 24-hour rolling baseline window is a double-edged sword:
+- ✅ Automatically adapts to long-term drift in normal network behaviour
+- ❌ When a fault-injection experiment runs and the detector is restarted shortly after, the fault windows (with high anomaly scores) are included in the baseline training set
+
+With `THRESHOLD_PERCENTILE=99.0` and ~30 fault windows (out of ~680 total) in the baseline:
+- The 99th percentile sits at roughly the 7th-highest baseline score
+- Fault-phase scores are among the highest in the distribution, directly setting the threshold
+- Result: threshold = "just above the fault scores we're trying to detect"
+
+### Fix for Future Experiments
+
+Before restarting the detector after fault-injection experiments, either:
+
+1. **Use a fixed clean-baseline timestamp** — train only on data before the first experiment started (e.g., `WHERE ts < '2026-03-15 22:00:00'`)
+2. **Lower THRESHOLD_PERCENTILE** — use p95 or p97.5 to leave headroom even when baseline is slightly contaminated
+3. **Wait for a full clean baseline window** — restart at least 24 hours after the last experiment (not practical in time-constrained research)
+4. **Exclude known fault windows** — tag fault periods in the DB and filter them from baseline training
+
+### Lesson
+
+Never restart the anomaly detector immediately after fault-injection experiments if using a rolling baseline window. The fault data contaminates the calibration distribution and can raise thresholds above the fault signal you're trying to detect. In production, use Option 1 or 4 (pinned clean baseline or fault-window exclusion). For this study, `THRESHOLD_PERCENTILE=95.0` provides sufficient headroom and is retained for all remaining experiments.

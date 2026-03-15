@@ -1,9 +1,6 @@
 # ── Scenario run starting ──────────────────────────────
-{"ts":"2026-03-15T20:30:24.843Z","event":"scenario_start","iface":"eth0"}
-{"ts":"2026-03-15T20:30:24.848Z","phase":"baseline","params":"none","duration_s":120,"iface":"eth0"}
-{"ts":"2026-03-15T20:32:24.870Z","phase":"delay_100ms","params":"-d 100 -j 20 -t 54.198.26.122","duration_s":300,"iface":"eth0"}
-{"ts":"2026-03-15T20:37:24.877Z","phase":"recover_1","params":"none","duration_s":120,"iface":"eth0"}
-{"ts":"2026-03-15T20:39:24.888Z","phase":"loss_2pct","params":"-l 2 -t 54.198.26.122","duration_s":180,"iface":"eth0"}
-{"ts":"2026-03-15T20:42:24.895Z","phase":"recover_2","params":"none","duration_s":120,"iface":"eth0"}
-{"ts":"2026-03-15T20:44:24.901Z","event":"scenario_end","iface":"eth0"}
-# ── Scenario run complete ──────────────────────────────
+{"ts":"2026-03-15T23:30:31.986Z","event":"scenario_start","iface":"eth0","delay_ms":100,"jitter_ms":20,"loss_pct":2}
+{"ts":"2026-03-15T23:30:31.991Z","phase":"baseline","params":"none","duration_s":120,"iface":"eth0"}
+{"ts":"2026-03-15T23:32:32.003Z","phase":"delay_100ms","params":"-d 100 -j 20 -t 54.198.26.122","duration_s":300,"iface":"eth0"}
+{"ts":"2026-03-15T23:37:32.009Z","phase":"recover_1","params":"none","duration_s":120,"iface":"eth0"}
+{"ts":"2026-03-15T23:39:32.020Z","phase":"loss_2pct","params":"-l 2 -t 54.198.26.122","duration_s":180,"iface":"eth0"}
