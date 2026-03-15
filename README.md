@@ -7,9 +7,17 @@ A graduate research testbed for studying **reliability-focused anomaly detection
 **"Cloud decides, edge executes"**
 
 - **6 Raspberry Pi edge nodes** (3 LAN + 3 Wi-Fi) run a lightweight probe agent that measures ICMP RTT/loss, DNS resolution, and HTTP latency, publishing telemetry via MQTT.
-- **AWS EC2 control plane** runs the MQTT broker, ingestion service, Postgres, Grafana, and the anomaly detection + mitigation controller.
+- **AWS EC2 primary control plane** (`ubuntu@ec2` — 54.198.26.122) runs the MQTT broker, ingestion service, Postgres, Grafana, and the anomaly detection + mitigation controller.
+- **AWS EC2 failover endpoint** (`ubuntu@failover` — 34.226.196.133) runs only the health app (port 8080). Provides a completely separate backup target so that after mitigator triggers failover, HTTP traffic leaves the primary EC2 entirely — enabling clean impact reduction measurement.
 - **Isolation Forest** model detects gray failures (latency/jitter/loss degradations) on windowed features.
 - **Automated mitigation** triggers endpoint failover and sampling rate adjustments.
+
+### Infrastructure
+
+| Role | Host | IP | Services |
+|------|------|----|----------|
+| Primary control plane | `ubuntu@ec2` | 54.198.26.122 | Mosquitto, Ingestion, Detector, EMA-Detector, Mitigator, Health :8080, Grafana :3000, Postgres :5432 |
+| Failover endpoint | `ubuntu@failover` | 34.226.196.133 | Health :8080 |
 
 ## Nodes
 

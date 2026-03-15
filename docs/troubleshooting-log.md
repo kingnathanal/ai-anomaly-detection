@@ -280,6 +280,67 @@ PGPASSWORD='...' psql -h localhost -U telemetry_user -d telemetry -c \
 
 ---
 
+## Issue #9 — Mitigator Tuple Unpack Error Caused Silent Failure During Exp 2
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-03-15 (~17:46Z – 17:55Z) |
+| **Severity** | Silent mitigation failure (~9 min window) |
+| **Component** | `control-plane/mitigator/controller.py` |
+| **Symptom** | Mitigator service was `active (running)` and polling the anomaly DB, but zero mitigation commands were issued during the first ~9 minutes of Exp 2 despite active anomaly events for all 6 nodes. No error messages appeared in the service log at `INFO` level. |
+
+### Root Cause
+
+The SQL query in the mitigator's persist-check loop returns a **3-tuple** per row:
+`(device_id, target_id, cnt)` — where `cnt` is the count of persistent anomaly windows.
+The loop unpacked it as a **2-tuple**:
+
+```python
+# BROKEN — IndexError / silent failure
+for device_id, target_id in pairs:
+    ...
+```
+
+Python raises a `ValueError: too many values to unpack` when iterating a 3-element
+sequence into 2 variables.  The exception was swallowed by a broad `except Exception`
+handler in the polling loop, which logged at `DEBUG` level (below the configured
+`LOG_LEVEL=INFO`), making the failure invisible in normal operation.
+
+### Fix
+
+Changed the loop variable to properly unpack the 3-tuple, discarding the count:
+
+```python
+# FIXED
+for device_id, target_id, _cnt in pairs:
+    ...
+```
+
+File: `control-plane/mitigator/controller.py`
+
+Deployed live to EC2 at 17:55Z during Exp 2. Mitigation commands began firing
+immediately after the fix was applied and the service restarted.
+
+### Impact on Experiments
+
+- **Exp 2:** Mitigations failed silently for the first ~9 minutes of the run.
+  LAN nodes received valid commands after the bug was fixed at 17:55Z. Results
+  are valid for detection MTTD; mitigation data is partial (LAN only, post-fix window).
+- **Exp 1:** Not affected (mitigator was not deployed during Exp 1).
+- **Exp 3+:** Not affected (bug was fixed before Exp 3).
+
+### Lesson
+
+- Always test the exact return shape of DB queries before deploying. A quick
+  `SELECT` + `print(rows[0])` in a local Python session would have caught this
+  immediately.
+- Broad `except Exception` handlers that log below `INFO` create invisible failure
+  modes. At minimum, log unexpected exceptions at `WARNING` regardless of `LOG_LEVEL`.
+- Add a unit test for the query unpacking: mock the DB cursor to return a 3-tuple
+  and assert the loop processes it without error.
+
+---
+
 ## Change Log — Non-Issue Changes
 
 ### 2026-02-17: Bandwidth Probe Added

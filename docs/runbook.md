@@ -3,17 +3,28 @@
 ## Architecture
 
 ```
-  Pi Nodes (6x)                      AWS EC2 (54.198.26.122)
+  Pi Nodes (6x)                      AWS EC2 — Primary (54.198.26.122)
   ┌──────────┐        MQTT:1883     ┌──────────────────────┐
   │ edge-    │──────telemetry──────▶│ Mosquitto            │
   │ agent    │◀────mitigation/cmd──│                      │
   │          │──────mitigation/ack─▶│ Ingestion → Postgres │
   │          │                      │ Detector  (IF model) │
   │          │──GET /health:8080───▶│ Health :8080         │
-  └──────────┘                      │ Mitigator            │
-                                    │ Grafana :3000        │
-                                    └──────────────────────┘
+  └──────────┘         │            │ Mitigator            │
+       │               │            │ Grafana :3000        │
+       │ (after        │            └──────────────────────┘
+       │  failover)    │
+       │               │            AWS EC2 — Failover (34.226.196.133)
+       │               │           ┌──────────────────────┐
+       └───GET /health:8080───────▶│ Health :8080         │
+                                   │ (no netem applied)   │
+                                   └──────────────────────┘
 ```
+
+netem faults on the Pis are scoped to `PRIMARY_IP=54.198.26.122` only.
+After the mitigator triggers a `failover_endpoint` command, HTTP traffic
+switches to `34.226.196.133:8080/health` — a separate physical host with no
+network impairments, enabling clean impact reduction measurement.
 
 ## Nodes
 
@@ -29,18 +40,43 @@
 ## Control Plane Access
 
 ```bash
-ssh ubuntu@ec2     # 54.198.26.122 (private: 172.31.64.97)
+ssh ubuntu@ec2         # 54.198.26.122 (primary — MQTT, Postgres, Grafana, detection)
+ssh ubuntu@failover    # 34.226.196.133 (failover health endpoint only)
 ```
+
+### Failover Server
+
+| Field | Detail |
+|-------|--------|
+| **SSH** | `ubuntu@failover` |
+| **Public IP** | 34.226.196.133 |
+| **Hostname** | ec2-34-226-196-133.compute-1.amazonaws.com |
+| **Purpose** | Backup HTTP health endpoint — separate AWS instance so failover traffic goes to a different physical host unaffected by netem faults on the primary |
+| **Health URL** | `http://34.226.196.133:8080/health` |
+| **Service** | `health` (same Flask/gunicorn app as primary) |
+
+```bash
+# Health check
+curl http://34.226.196.133:8080/health
+
+# Service management (on failover EC2)
+ssh ubuntu@failover 'sudo systemctl status health'
+ssh ubuntu@failover 'sudo systemctl restart health'
+ssh ubuntu@failover 'sudo journalctl -u health -n 30 --no-pager'
+```
+
+The failover server must be running and reachable **before** any experiment that
+tests impact reduction (Exp 4, Exp 5). Add it to your pre-experiment checklist.
 
 ### EC2 Security Group — Required Inbound Rules
 
 | Port/Protocol  | Source          | Purpose                    |
 |----------------|-----------------|----------------------------|
-| TCP 22         | Your IP         | SSH                        |
-| TCP 1883       | 0.0.0.0/0       | MQTT (Mosquitto)           |
-| TCP 3000       | 0.0.0.0/0       | Grafana dashboard          |
-| TCP 8080       | 0.0.0.0/0       | Health endpoint for probes |
-| ICMP (All)     | 0.0.0.0/0       | Ping probes from agents    |
+| TCP 22         | Your IP         | SSH (both EC2 instances)   |
+| TCP 1883       | 0.0.0.0/0       | MQTT (Mosquitto, primary only) |
+| TCP 3000       | 0.0.0.0/0       | Grafana dashboard (primary only) |
+| TCP 8080       | 0.0.0.0/0       | Health endpoint (both EC2 instances) |
+| ICMP (All)     | 0.0.0.0/0       | Ping probes from agents (primary only) |
 
 ---
 
@@ -260,7 +296,7 @@ ICMP_TIMEOUT_S=5
 DNS_QUERY=example.com
 DNS_TIMEOUT_S=5
 HTTP_URL_PRIMARY=http://54.198.26.122:8080/health
-HTTP_URL_BACKUP=https://1.1.1.1
+HTTP_URL_BACKUP=http://34.226.196.133:8080/health
 ACTIVE_TARGET_ID=primary
 HTTP_TIMEOUT_S=10
 BANDWIDTH_URL=https://speed.cloudflare.com/__down?bytes=1000000
@@ -314,6 +350,47 @@ ssh ubuntu@ec2 'sudo rm -f /opt/control-plane/detector/__pycache__/*.pyc && sudo
 scp control-plane/mitigator/*.py ubuntu@ec2:/opt/control-plane/mitigator/
 ssh ubuntu@ec2 'sudo systemctl restart mitigator'
 ```
+
+## Pre-Experiment Checklist
+
+Run through this before every fault injection experiment.
+
+```bash
+# 1. All 6 edge agents active
+for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
+  echo -n "$node: "; ssh kingnathanal@${node} 'systemctl is-active edge-probe'
+done
+
+# 2. All control-plane services active on primary EC2
+ssh ubuntu@ec2 'systemctl is-active ingestion detector ema-detector mitigator'
+
+# 3. Primary health endpoint responding
+curl -sf http://54.198.26.122:8080/health && echo "primary OK"
+
+# 4. Failover health endpoint responding (required for Exp 4, 5)
+curl -sf http://34.226.196.133:8080/health && echo "failover OK"
+
+# 5. Edge agent .env uses correct backup URL
+ssh kingnathanal@pi03-lan 'grep HTTP_URL_BACKUP /opt/edge-agent/.env'
+# Expected: HTTP_URL_BACKUP=http://34.226.196.133:8080/health
+
+# 6. netem cleared on all Pis from any prior run
+for node in pi03-lan pi04-lan pi05-lan; do
+  ssh kingnathanal@${node} 'sudo tc qdisc show dev eth0 | grep -q netem && echo "NETEM ACTIVE — clear it!" || echo "clean"'
+done
+for node in pi00-wifi pi01-wifi pi02-wifi; do
+  ssh kingnathanal@${node} 'sudo tc qdisc show dev wlan0 | grep -q netem && echo "NETEM ACTIVE — clear it!" || echo "clean"'
+done
+
+# 7. Confirm mitigator window setting
+ssh ubuntu@ec2 'grep ANOMALY_PERSIST_WINDOWS /opt/control-plane/mitigator/.env'
+# Expected: ANOMALY_PERSIST_WINDOWS=2
+
+# 8. Open Grafana in browser — set time range "last 15 min", auto-refresh 10s
+echo "Open: http://ec2-54-198-26-122.compute-1.amazonaws.com:3000"
+```
+
+---
 
 ## Fault Injection
 
@@ -387,10 +464,12 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
 
 ---
 
-## Health Endpoint
+## Health Endpoints
 
-The health endpoint runs on EC2 at `http://54.198.26.122:8080/health`. Edge agents
-probe this as their **primary** HTTP target so latency measurements
+### Primary Health Endpoint (EC2 — 54.198.26.122)
+
+The health endpoint runs on the primary EC2 at `http://54.198.26.122:8080/health`.
+Edge agents probe this as their **primary** HTTP target so latency measurements
 reflect the real edge → cloud path.
 
 ```bash
@@ -410,7 +489,25 @@ curl http://localhost:8080/degrade
 curl -X DELETE http://localhost:8080/degrade
 ```
 
-Backup/failover target: `https://1.1.1.1` (Cloudflare — always reachable).
+### Failover Health Endpoint (EC2 — 34.226.196.133)
+
+Separate AWS instance used as the backup target after mitigator triggers
+`failover_endpoint`. netem faults are scoped to `54.198.26.122` only, so
+traffic to this host flows unimpeded during experiments.
+
+```bash
+# Check status (from anywhere)
+curl http://34.226.196.133:8080/health
+
+# SSH to failover EC2
+ssh ubuntu@failover
+
+# Service management on failover EC2
+ssh ubuntu@failover 'sudo systemctl status health'
+ssh ubuntu@failover 'sudo systemctl restart health'
+```
+
+Failover target URL (set in edge agent `.env`): `http://34.226.196.133:8080/health`
 
 ---
 
@@ -562,6 +659,8 @@ docs/
 | 2026-03-15 | Fixed Model Agreement panel (no data)              | Replaced exact window timestamp JOIN with `date_trunc('minute', window_end_ts)` — IF/EMA run ~20s apart so exact match always returned 0 rows |
 | 2026-03-15 | Captured Tier 1 baseline screenshots               | B1–B11 captured; saved to `docs/screenshots/baseline/`; system healthy, all 6 nodes reporting |
 | 2026-03-15 | Ran fault injection scenarios on all 6 nodes       | All nodes synchronized within ~1s; ground truth logs saved to `docs/screenshots/experiments/ground-truth/`; see phase table below |
+| 2026-03-15 | Deployed failover EC2 health endpoint              | Separate AWS instance (34.226.196.133); health app on port 8080; replaces co-located port 8082 backup |
+| 2026-03-15 | Updated edge agent .env — HTTP_URL_BACKUP          | Changed from `https://1.1.1.1` to `http://34.226.196.133:8080/health` on all 6 Pis |
 
 ### 2026-03-15 Experiment — Ground Truth Phase Timestamps (UTC)
 
