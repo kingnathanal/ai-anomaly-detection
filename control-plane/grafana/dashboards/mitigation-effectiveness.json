@@ -390,7 +390,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - ICMP RTT' as metric,\n  AVG(t.icmp_rtt_avg_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id]::text[])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - ICMP RTT' as metric,\n  AVG(t.icmp_rtt_avg_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id]::text[])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "A"
         },
         {
@@ -401,7 +401,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - HTTP Latency' as metric,\n  AVG(t.http_latency_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "WITH mitigation_windows AS (\n  SELECT\n    m.device_id,\n    m.issued_ts,\n    m.status_ts,\n    m.action,\n    m.command_id\n  FROM mitigation_actions m\n  WHERE m.status = 'applied'\n    AND m.status_ts IS NOT NULL\n    AND $__timeFilter(m.issued_ts)\n    AND m.device_id = ANY(ARRAY[$device_id]::text[])\n)\nSELECT\n  time_bucket('30s', t.ts) AS time,\n  t.device_id || ' - HTTP Latency' as metric,\n  AVG(t.http_latency_ms) as value\nFROM telemetry_measurements t\nWHERE $__timeFilter(t.ts)\n  AND t.device_id = ANY(ARRAY[$device_id]::text[])\n  AND EXISTS (\n    SELECT 1 FROM mitigation_windows mw\n    WHERE mw.device_id = t.device_id\n      AND t.ts BETWEEN mw.issued_ts - INTERVAL '5 minutes' AND mw.status_ts + INTERVAL '10 minutes'\n  )\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "B"
         }
       ],
@@ -523,7 +523,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  m.device_id || ' - Before' as metric,\n  AVG(t.icmp_rtt_avg_ms) as \"Avg RTT (ms)\",\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY t.icmp_rtt_avg_ms) as \"P95 RTT (ms)\",\n  AVG(t.http_latency_ms) as \"Avg HTTP (ms)\",\n  AVG(t.icmp_loss_pct) as \"Avg Loss %\"\nFROM mitigation_actions m\nJOIN telemetry_measurements t\n  ON t.device_id = m.device_id\n  AND t.ts BETWEEN m.issued_ts - INTERVAL '5 minutes' AND m.issued_ts\nWHERE m.status = 'applied'\n  AND $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id])\nGROUP BY m.device_id\n\nUNION ALL\n\nSELECT\n  m.device_id || ' - After' as metric,\n  AVG(t.icmp_rtt_avg_ms) as \"Avg RTT (ms)\",\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY t.icmp_rtt_avg_ms) as \"P95 RTT (ms)\",\n  AVG(t.http_latency_ms) as \"Avg HTTP (ms)\",\n  AVG(t.icmp_loss_pct) as \"Avg Loss %\"\nFROM mitigation_actions m\nJOIN telemetry_measurements t\n  ON t.device_id = m.device_id\n  AND t.ts BETWEEN COALESCE(m.status_ts, m.issued_ts) AND COALESCE(m.status_ts, m.issued_ts) + INTERVAL '5 minutes'\nWHERE m.status = 'applied'\n  AND $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id])\nGROUP BY m.device_id\n\nORDER BY metric",
+          "rawSql": "SELECT\n  m.device_id || ' - Before' as metric,\n  AVG(t.icmp_rtt_avg_ms) as \"Avg RTT (ms)\",\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY t.icmp_rtt_avg_ms) as \"P95 RTT (ms)\",\n  AVG(t.http_latency_ms) as \"Avg HTTP (ms)\",\n  AVG(t.icmp_loss_pct) as \"Avg Loss %\"\nFROM mitigation_actions m\nJOIN telemetry_measurements t\n  ON t.device_id = m.device_id\n  AND t.ts BETWEEN m.issued_ts - INTERVAL '5 minutes' AND m.issued_ts\nWHERE m.status = 'applied'\n  AND $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id]::text[])\nGROUP BY m.device_id\n\nUNION ALL\n\nSELECT\n  m.device_id || ' - After' as metric,\n  AVG(t.icmp_rtt_avg_ms) as \"Avg RTT (ms)\",\n  PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY t.icmp_rtt_avg_ms) as \"P95 RTT (ms)\",\n  AVG(t.http_latency_ms) as \"Avg HTTP (ms)\",\n  AVG(t.icmp_loss_pct) as \"Avg Loss %\"\nFROM mitigation_actions m\nJOIN telemetry_measurements t\n  ON t.device_id = m.device_id\n  AND t.ts BETWEEN COALESCE(m.status_ts, m.issued_ts) AND COALESCE(m.status_ts, m.issued_ts) + INTERVAL '5 minutes'\nWHERE m.status = 'applied'\n  AND $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id]::text[])\nGROUP BY m.device_id\n\nORDER BY metric",
           "refId": "A"
         }
       ],
@@ -677,7 +677,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('10m', issued_ts) AS time,\n  status as metric,\n  COUNT(*) as value\nFROM mitigation_actions\nWHERE $__timeFilter(issued_ts)\n  AND device_id = ANY(ARRAY[$device_id])\nGROUP BY 1, 2\nORDER BY 1",
+          "rawSql": "SELECT\n  time_bucket('10m', issued_ts) AS time,\n  status as metric,\n  COUNT(*) as value\nFROM mitigation_actions\nWHERE $__timeFilter(issued_ts)\n  AND device_id = ANY(ARRAY[$device_id]::text[])\nGROUP BY 1, 2\nORDER BY 1",
           "refId": "A"
         }
       ],
@@ -796,7 +796,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  m.issued_ts,\n  m.device_id,\n  m.action,\n  m.status,\n  m.status_ts,\n  ROUND(EXTRACT(EPOCH FROM (m.status_ts - m.issued_ts))::numeric, 2) as \"response_time_s\",\n  m.notes,\n  m.params\nFROM mitigation_actions m\nWHERE $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id])\nORDER BY m.issued_ts DESC\nLIMIT 50",
+          "rawSql": "SELECT\n  m.issued_ts,\n  m.device_id,\n  m.action,\n  m.status,\n  m.status_ts,\n  ROUND(EXTRACT(EPOCH FROM (m.status_ts - m.issued_ts))::numeric, 2) as \"response_time_s\",\n  m.notes,\n  m.params::text as params\nFROM mitigation_actions m\nWHERE $__timeFilter(m.issued_ts)\n  AND m.device_id = ANY(ARRAY[$device_id]::text[])\nORDER BY m.issued_ts DESC\nLIMIT 50",
           "refId": "A"
         }
       ],
