@@ -228,6 +228,58 @@ Dashboard queries used `time_bucket()`, a TimescaleDB function, but the PostgreS
 
 ---
 
+## Issue #8 — Mitigator Service Never Deployed; No Mitigations Applied During Experiment
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-03-15 |
+| **Severity** | Missing functionality (mitigation loop silent) |
+| **Component** | `control-plane/mitigator/controller.py` + systemd |
+| **Symptom** | Fault injection experiment ran successfully — detector flagged 35 anomalies across all 6 nodes — but zero mitigation commands were issued. `mitigation_actions` table was empty. |
+
+### Root Cause
+
+The mitigator service (`control-plane/mitigator/`) existed in the repository but had **never been deployed to EC2**. No `/opt/control-plane/mitigator/` directory existed, and no `mitigator.service` systemd unit was installed. The ingestion and detector services were deployed previously; the mitigator was overlooked.
+
+Additionally, the default `ANOMALY_PERSIST_WINDOWS=3` (lookback = 6 minutes, requires 3 anomaly windows) was too conservative for the fault injection phases:
+- Delay phase: 5 minutes → borderline (2–3 windows)
+- Loss phase: 3 minutes → would fire too late or not at all
+
+### Fix
+
+1. Deployed mitigator code to EC2:
+   ```bash
+   scp control-plane/mitigator/{controller.py,requirements.txt} ubuntu@ec2:/tmp/
+   ssh ubuntu@ec2 "sudo mkdir -p /opt/control-plane/mitigator && sudo cp /tmp/controller.py /tmp/requirements.txt /opt/control-plane/mitigator/"
+   ```
+2. Created `/opt/control-plane/mitigator/.env` with credentials + tuned config:
+   - `ANOMALY_PERSIST_WINDOWS=2` (4-minute lookback, requires 2 anomaly windows)
+   - `BACKUP_HTTP_URL=https://1.1.1.1` (matches `HTTP_URL_BACKUP` in edge agent `.env`)
+3. Installed deps: `/opt/control-plane/venv/bin/pip install -r requirements.txt`
+4. Deployed `control-plane/systemd/mitigator.service` to `/etc/systemd/system/`
+5. Enabled and started: `systemctl enable --now mitigator`
+
+Service confirmed running as of 2026-03-15T17:24:08Z. Mitigation commands will now be issued after 2 consecutive anomaly windows (~4 minutes) of persistent anomaly for a device.
+
+### Lesson
+
+- All three control-plane services (ingestion, detector, mitigator) must be deployed as a set. A deployment checklist should verify all three are `active (running)` before running experiments.
+- Tune `ANOMALY_PERSIST_WINDOWS` relative to fault phase duration: at least 1 window shorter than the shortest fault phase. For 3-minute phases with 2-minute windows, use `ANOMALY_PERSIST_WINDOWS=1` or `2`.
+- Before any experiment run, confirm: `systemctl is-active ingestion detector ema-detector mitigator`
+
+### Verification Command
+
+```bash
+# All four services should report "active"
+ssh ubuntu@ec2 "systemctl is-active ingestion detector ema-detector mitigator"
+
+# Confirm mitigation actions appear during/after fault injection
+PGPASSWORD='...' psql -h localhost -U telemetry_user -d telemetry -c \
+  "SELECT device_id, action, status, issued_ts FROM mitigation_actions ORDER BY issued_ts DESC LIMIT 10;"
+```
+
+---
+
 ## Change Log — Non-Issue Changes
 
 ### 2026-02-17: Bandwidth Probe Added
