@@ -292,7 +292,7 @@ def main() -> None:
         conn = get_conn()
         try:
             pairs = find_devices_needing_mitigation(conn)
-            for device_id, target_id in pairs:
+            for device_id, target_id, _cnt in pairs:
                 if has_pending_command(conn, device_id):
                     log.debug("skipping device=%s, pending command exists", device_id)
                     continue
