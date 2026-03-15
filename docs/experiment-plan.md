@@ -30,11 +30,13 @@ measurements, we capture a periodic bandwidth estimate alongside telemetry.
 
 **Node-Specific Observations:**
 - **pi00-wifi** exhibits higher packet loss (~0.26% vs ~0.1% for pi01/pi02-wifi)
-  and elevated WiFi retry count (982). Likely positioned farther from the router
-  or experiencing more interference. This is natural WiFi variability and is
-  documented as-is — it provides useful heterogeneity data showing how the
-  detector handles nodes with different baseline reliability profiles.
-- LAN nodes (pi03-pi05) show 0% packet loss consistently.
+  and elevated WiFi retry count (~982 vs near-zero on Pi 5 nodes). All nodes are
+  co-located in the same physical tower, so positioning is not the cause. **pi00-wifi
+  is a Raspberry Pi 4** (Cypress CYW43455 WiFi chip) while pi01-wifi and pi02-wifi
+  are **Raspberry Pi 5s** with newer wireless hardware. This hardware difference
+  produces measurably higher baseline noise on pi00-wifi and is an important
+  confounding variable when comparing WiFi detection results across experiments.
+- LAN nodes (pi03-pi05) show 0% packet loss consistently; all are Pi 5s.
 
 ---
 
@@ -107,6 +109,18 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 **Target:** `pi00-wifi` via `wlan0`
 **Controls:** all other 5 nodes (no injection)
 
+> ⚠️ **Hardware note:** `pi00-wifi` is a **Raspberry Pi 4** while all other nodes are
+> **Raspberry Pi 5**. The Pi 4 uses a Cypress CYW43455 WiFi chip (older generation)
+> vs the Pi 5's newer wireless hardware. Despite all nodes sitting in the same physical
+> tower, pi00-wifi shows higher baseline packet loss (~0.26% vs ~0.1% for pi01/pi02-wifi)
+> and elevated WiFi retry counts (~982 vs near-zero on Pi 5 nodes). This is a hardware
+> capability difference, not a placement or interference issue.
+>
+> **Research implication:** This makes Experiment 2 more interesting — the detector must
+> learn pi00-wifi's noisier baseline and still detect a 100ms injected delay on top of it.
+> If MTTD for Experiment 2 is longer than Experiment 1, the Pi 4 baseline noise is a
+> contributing factor alongside the general WiFi variance effect.
+
 ```bash
 # On pi00-wifi
 sudo bash /opt/edge-agent/fault_injection/netem_apply.sh -i wlan0 -d 100 -j 20
@@ -115,8 +129,10 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
 ```
 
 **What to measure:**
-- MTTD: compare with Experiment 1 — WiFi baseline is noisier (~53ms), so 100ms added delay may be harder to detect
-- Does the per-device model correctly account for WiFi's higher natural variance?
+- MTTD: compare with Experiment 1 — WiFi baseline is noisier (~53ms RTT avg), and pi00-wifi
+  has higher baseline loss (~0.26%) vs clean LAN, so 100ms delay must stand out against more noise
+- Does the per-device threshold correctly isolate pi00-wifi's Pi 4 baseline from pi01/pi02-wifi?
+- Compare pi00-wifi MTTD vs pi01-wifi/pi02-wifi in Experiments 4 and 6 — any consistent gap?
 
 ---
 
@@ -358,6 +374,7 @@ comparison from the same time window.
 2. **False alerts:** Isolation Forest should have fewer false alerts because it learns the multivariate baseline distribution. EMA may fire on WiFi jitter spikes.
 3. **Loss detection:** EMA should detect packet loss faster (direct metric monitoring) vs Isolation Forest where loss is 1 of 9 features.
 4. **Explainability:** EMA wins — it tells you *which* metric triggered. Isolation Forest just says "anomalous".
+5. **Pi 4 vs Pi 5 effect:** pi00-wifi (Pi 4) may show longer MTTD and/or higher false alert rate vs pi01-wifi / pi02-wifi (Pi 5) on identical faults. If per-device thresholds are working correctly, the models should absorb pi00-wifi's noisier baseline — any persistent MTTD gap becomes evidence of hardware capability as a detection confound.
 
 ### Paper Narrative
 
@@ -377,7 +394,8 @@ comparison from the same time window.
 4. **Feature analysis** — which features contributed most to Isolation Forest detection (use Feature Window Explorer dashboard); which metrics triggered EMA alerts
 5. **Anomaly score trajectory** — plot both models' scores over time across fault/recovery phases
 6. **WiFi robustness** — does EMA's per-metric approach suffer more false alerts on noisy WiFi links?
-7. **Write up results** for blog post and paper using data from Grafana dashboards
+7. **Pi 4 vs Pi 5 hardware analysis** — compare Exp 01/02 (delay), Exp 03/04 (loss), Exp 05/06 (full) LAN results against pi00-wifi specifically. If pi00-wifi MTTD consistently lags pi01-wifi and pi02-wifi, report this as a hardware-driven detection sensitivity difference. Both models should be assessed.
+8. **Write up results** for blog post and paper using data from Grafana dashboards
 
 ---
 
