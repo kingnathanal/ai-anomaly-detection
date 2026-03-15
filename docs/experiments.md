@@ -30,157 +30,139 @@ contaminating impact reduction measurements.
 
 ---
 
-## Research Experiment Plan
+## Exploratory / Setup Runs *(archived — not used for paper metrics)*
 
-### Experiment 1 — Detection Only *(completed)*
+These runs were used to build, debug, and validate the pipeline. They had
+configuration issues that make their metrics inconsistent or not directly
+comparable. They are archived here for reference only.
 
-| Field | Detail |
-|-------|--------|
-| **Status** | Done |
-| **Scope** | Detection only — mitigator was not deployed |
-| **Nodes** | All 6 |
-| **Scenario** | Standard (delay 100ms + loss 2%) |
-| **Valid for** | MTTD detection measurement |
-| **Notes** | Established baseline detection performance; 35 anomaly events flagged across all nodes. Mitigator was not deployed so zero mitigation commands issued. |
+| Run | Issue | Valid for |
+|-----|-------|-----------|
+| Setup Run A | Mitigator not deployed | Detection MTTD only |
+| Setup Run B | Tuple-unpack bug in mitigator (`controller.py`) | Partial detection only |
+| Setup Run C | Backup co-located (port 8082, same EC2) — shared fault domain | Pipeline validation only |
+| Setup Run D | WiFi nodes used `eth0` instead of `wlan0` — only 3/6 nodes faulted | LAN-only clean data |
 
-### Experiment 2 — Partial Mitigation / LAN Only *(completed)*
+See `docs/troubleshooting-log.md` Issues #9 and #10 for details on bugs fixed.
 
-| Field | Detail |
-|-------|--------|
-| **Status** | Done |
-| **Scope** | Mitigator deployed but tuple-unpack bug caused silent failure for first ~9 min |
-| **Nodes** | All 6 (LAN mitigation only in valid window) |
-| **Scenario** | Standard (delay 100ms + loss 2%) |
-| **Valid for** | Detection MTTD + partial mitigation pipeline validation |
-| **Notes** | Mitigator deployed; bug in `controller.py` (`for device_id, target_id in pairs:` → query returns 3-tuple) caused all mitigation commands to fail silently until the bug was fixed live at 17:55Z. LAN nodes received valid mitigations after the fix. See Issue #9 in troubleshooting-log.md. |
+---
 
-### Experiment 3 — Full End-to-End, Co-Located Backup *(completed)*
+## Canonical Paper Experiments
 
-| Field | Detail |
-|-------|--------|
-| **Status** | Done |
-| **Scope** | Full pipeline: all 6 nodes detected + mitigated |
-| **Nodes** | All 6 |
-| **Scenario** | Standard (delay 100ms + loss 2%) |
-| **Backup endpoint** | Port 8082 on primary EC2 (co-located) |
-| **Valid for** | Detection + mitigation pipeline validation (end-to-end flow confirmed) |
-| **Notes** | Backup was co-located on the same EC2 (port 8082). Netem rules on the primary IP still affected backup traffic, so impact reduction measurements are not clean. Use Exp 4 for impact reduction analysis. |
+Three identical runs with a fully-correct, stable configuration.
+All 6 nodes faulted. Separate failover EC2. Interface auto-detected.
+Run ~45 minutes apart to allow system to settle between runs.
 
-### Experiment 4 — Full End-to-End, Proper Failover Server *(planned)*
+### Configuration (all 3 experiments)
 
-| Field | Detail |
-|-------|--------|
-| **Status** | Planned |
-| **Scope** | Full pipeline with separate failover EC2 — canonical clean run for impact reduction |
-| **Nodes** | All 6 |
-| **Scenario** | Standard: delay 100ms ± 20ms for 5 min + loss 2% for 3 min |
-| **Backup endpoint** | `http://34.226.196.133:8080/health` (separate EC2, unaffected by netem) |
-| **netem scoping** | `PRIMARY_IP=54.198.26.122` only — failover traffic to 34.226.196.133 is unimpeded |
+| Setting | Value |
+|---------|-------|
+| Nodes | All 6 (pi00–pi02 WiFi on `wlan0`, pi03–pi05 LAN on `eth0`) |
+| Scenario | Standard: delay 100ms ± 20ms for 5 min + loss 2% for 3 min |
+| Primary endpoint | `http://54.198.26.122:8080/health` |
+| Failover endpoint | `http://34.226.196.133:8080/health` (separate EC2, netem-free) |
+| netem scoping | `PRIMARY_IP=54.198.26.122` only |
+| Interface | Auto-detected from hostname (`*wifi*` → `wlan0`, else `eth0`) |
+| Total duration | 14 min per run |
+| Gap between runs | ~45 min (edge agents reset to primary between runs) |
 
-#### Expected Metrics
-
-| Metric | Expected Value |
-|--------|----------------|
-| Baseline HTTP latency | ~45 ms (primary, no fault) |
-| HTTP latency during fault | ~295 ms (100ms netem added) |
-| HTTP latency after failover | ~45 ms (backup EC2, no netem) |
-| Impact reduction | ~85% HTTP latency reduction |
-| Detection MTTD | ~30–50 s (based on Exp 1–3) |
-| Mitigation MTTD | ~180–240 s (`ANOMALY_PERSIST_WINDOWS=2` × 120 s window + 60 s poll) |
-
-#### Pre-Experiment Checklist
-
-- [ ] All 6 edge agents running (`systemctl is-active edge-probe` on each Pi)
-- [ ] All control-plane services active: `systemctl is-active ingestion detector ema-detector mitigator`
-- [ ] Failover server responding: `curl http://34.226.196.133:8080/health`
-- [ ] Primary health endpoint responding: `curl http://54.198.26.122:8080/health`
-- [ ] Edge agent `.env` has `HTTP_URL_BACKUP=http://34.226.196.133:8080/health`
-- [ ] `ANOMALY_PERSIST_WINDOWS=2` in mitigator `.env`
-- [ ] netem cleared on all Pis from any prior run
-- [ ] Grafana open, time range set to "last 15 min", auto-refresh 10s
-
-#### Running
-
-```bash
-# On each Pi simultaneously (run all 6 in separate terminals or tmux):
-sudo bash /opt/edge-agent/fault_injection/scenarios.sh eth0   # LAN nodes
-sudo bash /opt/edge-agent/fault_injection/scenarios.sh wlan0  # WiFi nodes
-
-# Save ground truth timestamps:
-sudo bash /opt/edge-agent/fault_injection/scenarios.sh eth0 | tee /tmp/exp4_$(date +%s).jsonl
-```
-
-### Experiment 5 — Stress Test, High Severity *(planned)*
-
-| Field | Detail |
-|-------|--------|
-| **Status** | Planned |
-| **Scope** | Detection robustness + mitigation effectiveness under severe fault conditions |
-| **Nodes** | All 6 |
-| **Scenario** | Stress: delay 200ms ± 30ms for 5 min + loss 5% for 5 min |
-| **Backup endpoint** | `http://34.226.196.133:8080/health` (same separate EC2 as Exp 4) |
-
-#### Scenario Phases
+### Scenario Phases
 
 | Phase | Duration | Parameters |
 |-------|----------|------------|
 | Baseline | 2 min | Clean (no netem) |
-| Delay | 5 min | 200ms ± 30ms delay (normal distribution) |
+| Delay | 5 min | 100ms ± 20ms (normal distribution), scoped to `PRIMARY_IP` |
 | Recovery 1 | 2 min | Clean |
-| Loss | 5 min | 5% packet loss |
+| Packet loss | 3 min | 2% loss, scoped to `PRIMARY_IP` |
 | Recovery 2 | 2 min | Clean |
 
-**Total duration:** 16 minutes
+### Experiment 1 *(pending)*
 
-#### Research Questions
+| Field | Detail |
+|-------|--------|
+| **Status** | Pending |
+| **Planned start** | ~1 hr after system reset (~22:00Z) |
+| **Notes** | First canonical run. All 6 nodes. Interface auto-detection active. |
 
-- Does detection still occur at MTTD < 60s under 2× the standard delay?
-- Does the Isolation Forest score saturate at high severity, or scale proportionally?
-- Does the EMA detector flag faster than IF under severe conditions?
-- Is impact reduction still measurable after failover (backup unaffected)?
-- Are there any false-negative windows where the model misses a severe fault?
+### Experiment 2 *(pending)*
 
-#### Expected Outcomes
+| Field | Detail |
+|-------|--------|
+| **Status** | Pending |
+| **Planned start** | ~45 min after Exp 1 completes (~22:59Z) |
+| **Notes** | Identical parameters to Exp 1 — replication run. |
+
+### Experiment 3 *(pending)*
+
+| Field | Detail |
+|-------|--------|
+| **Status** | Pending |
+| **Planned start** | ~45 min after Exp 2 completes (~23:58Z) |
+| **Notes** | Identical parameters to Exp 1 & 2 — third replication. |
+
+### Expected Metrics (per experiment)
 
 | Metric | Expected Value |
 |--------|----------------|
-| Baseline HTTP latency | ~45 ms |
-| HTTP latency during 200ms fault | ~445 ms |
-| HTTP latency during 5% loss fault | elevated + jitter from retransmits |
-| HTTP latency after failover | ~45 ms (backup EC2) |
-| Detection MTTD | < 30 s (larger signal → faster detection) |
-| False negatives | None expected at this severity |
+| Baseline HTTP latency | ~80 ms |
+| HTTP latency during fault | ~280 ms (+100ms netem) |
+| HTTP latency after failover | ~80 ms (backup EC2, no netem) |
+| Impact reduction | ~70–75% HTTP latency reduction |
+| Detection MTTD | ~90–120 s (based on setup run D: 104 s) |
+| Mitigation lag | ~250–300 s from fault start |
+| False alert rate | ~0.26 alerts/hr (LAN) / ~0.60 alerts/hr (WiFi) |
 
-#### Custom `scenarios.sh` for Exp 5
+### Pre-Experiment Checklist
 
-Run manually with `netem_apply.sh` since the default `scenarios.sh` uses 100ms + 2%:
+Run before **each** experiment:
 
 ```bash
-# On each Pi:
-# Phase 1: baseline 2 min
-echo '{"phase":"baseline","start":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
-sleep 120
+# 1. Restart all edge agents to reset failover state → primary
+for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
+  ssh -i ~/.ssh/remote-key.pem kingnathanal@${node} "sudo systemctl restart edge-probe"
+done
 
-# Phase 2: delay 200ms ±30ms for 5 min
-sudo bash /opt/edge-agent/fault_injection/netem_apply.sh -i eth0 -d 200 -j 30 -t 54.198.26.122
-echo '{"phase":"delay_200ms","start":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
-sleep 300
-sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
+# 2. Confirm all 6 are on primary target
+ssh -i ~/.ssh/remote-key.pem ubuntu@ec2 \
+  "sudo -u postgres psql -d telemetry -c \"
+    SELECT DISTINCT ON (device_id) device_id, target_id, ts
+    FROM telemetry_measurements
+    ORDER BY device_id, ts DESC;\""
 
-# Phase 3: recovery 2 min
-echo '{"phase":"recover_1","start":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
-sleep 120
+# 3. Confirm both health endpoints are up
+curl -s http://54.198.26.122:8080/health && curl -s http://34.226.196.133:8080/health
 
-# Phase 4: loss 5% for 5 min
-sudo bash /opt/edge-agent/fault_injection/netem_apply.sh -i eth0 -l 5 -t 54.198.26.122
-echo '{"phase":"loss_5pct","start":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
-sleep 300
-sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
+# 4. Confirm no active netem on any node
+for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
+  ssh -i ~/.ssh/remote-key.pem kingnathanal@${node} "sudo tc qdisc show dev eth0; sudo tc qdisc show dev wlan0" 2>/dev/null
+done
 
-# Phase 5: recovery 2 min
-echo '{"phase":"recover_2","start":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
-sleep 120
-echo '{"phase":"done","end":"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'"}'
+# 5. Confirm 0 anomalies in last 5 min (system settled)
+ssh -i ~/.ssh/remote-key.pem ubuntu@ec2 \
+  "sudo -u postgres psql -d telemetry -c \"
+    SELECT count(*) FROM anomaly_events
+    WHERE is_anomaly=true AND event_ts > now() - interval '5 minutes';\""
+```
+
+### Launch Command (all 6 nodes simultaneously)
+
+```bash
+EXP=exp1  # change to exp2, exp3 for subsequent runs
+
+for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
+  short=${node%%-*}
+  ssh -i ~/.ssh/remote-key.pem kingnathanal@${node} \
+    "cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh > /tmp/${EXP}-${short}.log 2>&1" &
+done
+wait && echo "All nodes complete"
+
+# Collect ground truth logs
+mkdir -p docs/screenshots/experiments/ground-truth/${EXP}
+for node in pi00-wifi pi01-wifi pi02-wifi pi03-lan pi04-lan pi05-lan; do
+  short=${node%%-*}
+  scp -i ~/.ssh/remote-key.pem kingnathanal@${node}:/tmp/${EXP}-${short}.log \
+    docs/screenshots/experiments/ground-truth/${EXP}/${EXP}-${node}.log
+done
 ```
 
 ---
