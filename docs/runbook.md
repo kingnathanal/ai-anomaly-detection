@@ -425,17 +425,33 @@ Screenshots are organized by **when** they should be taken.
 
 These visuals show the healthy system and can be captured any time before experiments.
 
-| # | What to Capture | Dashboard / Source | Panel / View | Story It Tells |
-|---|----------------|--------------------|--------------|----------------|
-| B1 | All-node baseline RTT (48h) | Latency Overview | RTT avg per device, time range: last 48h | "This is what normal looks like" |
-| B2 | LAN vs WiFi latency comparison | Network Comparison | Side-by-side RTT/HTTP/DNS box plots | LAN ~39ms vs WiFi ~54ms baseline gap |
-| B3 | Anomaly score during clean baseline | Anomaly Detection | IF score time series, all 6 nodes, last 24h | Scores stay below threshold — low false alert rate |
-| B4 | EMA Z-score during clean baseline | Model Comparison | EMA max Z-score panel, last 24h | Compare EMA baseline noise level |
-| B5 | Node status / data freshness table | Any dashboard | `SELECT device_id, MAX(ts), COUNT(*)` from Postgres | All 6 nodes active, data volume |
-| B6 | 27-day telemetry growth | Postgres query | Row count + DB size query | Demonstrates system stability over time |
-| B7 | **Photo of Pi tower** | Physical hardware | Camera — all 6 Pis in tower, Ethernet + WiFi | Shows the actual testbed hardware |
-| B8 | Architecture diagram | `docs/testbed-architecture.excalidraw` | Export → PNG from excalidraw.com | High-level system overview for readers |
-| B9 | Pi 4 vs Pi 5 baseline comparison | Network Comparison | pi00-wifi vs pi01-wifi RTT/loss side-by-side | Hardware-driven baseline difference |
+| # | What to Capture | Dashboard | Exact Panel Name | Notes |
+|---|----------------|-----------|-----------------|-------|
+| B1 | All-node baseline RTT (48h) | **Latency Overview** | `ICMP RTT (Average)` | Set time range → last 48h |
+| B2 | LAN vs WiFi RTT comparison | **LAN vs WiFi Comparison** | `LAN vs WiFi - ICMP RTT` | Shows ~39ms LAN vs ~54ms WiFi gap |
+| B3 | LAN vs WiFi packet loss | **LAN vs WiFi Comparison** | `LAN vs WiFi - Packet Loss` | Pi 4 vs Pi 5 loss difference visible here |
+| B4 | Network summary table | **LAN vs WiFi Comparison** | `Network Performance Summary` | Tabular baseline stats all nodes |
+| B5 | IF anomaly scores during baseline | **Anomaly Detection** | `Anomaly Scores Over Time` | Set last 24h — scores stay below threshold |
+| B6 | IF stats: false alert rate | **Anomaly Detection** | `False Alert Rate` + `Total Anomalies Detected` stat panels | Two stat tiles, screenshot together |
+| B7 | EMA Z-score during baseline | **Model Comparison — IF vs EMA** | `Per-Metric Z-Scores — $device` (EMA Z-Score Breakdown row) | Select a clean LAN node; set last 24h |
+| B8 | Both models side-by-side | **Model Comparison — IF vs EMA** | `Anomaly Score — $device` (Score Comparison row) | Shows IF score and EMA together on one chart |
+| B9 | Node status / data freshness | **Anomaly Detection** | `Recent Anomaly Events` table | Or run Postgres query — see below |
+| B10 | **Photo of Pi tower** | Physical hardware | n/a — camera | All 6 Pis, Ethernet + WiFi cables visible |
+| B11 | Architecture diagram PNG | `docs/testbed-architecture.excalidraw` | Export → PNG via excalidraw.com | High-level system diagram |
+
+**Postgres query for B9 (node freshness — paste into any psql session):**
+```sql
+SELECT device_id, MAX(ts) AS last_seen,
+  EXTRACT(EPOCH FROM (now() - MAX(ts)))::int AS secs_ago,
+  COUNT(*) AS total_rows
+FROM telemetry_measurements
+GROUP BY device_id ORDER BY device_id;
+```
+
+**Note — what doesn't exist yet:**
+- There is no "box plot" / distribution panel — `LAN vs WiFi - ICMP RTT` is a **time series**, not a box plot. The `Network Performance Summary` table is the closest tabular comparison.
+- There is no dedicated "pi00-wifi vs pi01-wifi" comparison panel — use `LAN vs WiFi - Packet Loss` with a filter, or export a Postgres query for the side-by-side.
+- There is no "EMA max Z-score" single-panel view — use `Per-Metric Z-Scores — $device` and select each WiFi node separately.
 
 ---
 
@@ -444,15 +460,15 @@ These visuals show the healthy system and can be captured any time before experi
 Take these screenshots **during the fault injection window** of each experiment.
 Open Grafana before starting. Set time range to "last 15 minutes" and auto-refresh to 10s.
 
-| # | What to Capture | Dashboard | When to Capture | Story It Tells |
-|---|----------------|-----------|-----------------|----------------|
-| E1 | RTT spike at fault injection moment | Latency Overview | ~1 min after `netem_apply.sh` | Clear visual of injected fault |
-| E2 | ICMP loss_pct jump (loss experiments only) | Latency Overview | During Exp 03, 04, 05, 06 | Loss fault is visible in raw metrics |
-| E3 | IF anomaly score rising | Anomaly Detection | When score first crosses threshold | MTTD moment — the "aha" frame |
-| E4 | EMA Z-score rising | Model Comparison | When EMA first flags | Compare which model fired first |
-| E5 | Both models together on one screen | Model Comparison | Peak of fault window | IF vs EMA detection comparison |
-| E6 | `scenarios.sh` terminal output | Terminal on Pi | During/after automated scenario | Ground truth timestamps (save as text too) |
-| E7 | Mitigation command received (if triggered) | Model Comparison or logs | When mitigator fires | End-to-end loop completing |
+| # | What to Capture | Dashboard | Exact Panel Name | When |
+|---|----------------|-----------|-----------------|------|
+| E1 | RTT spike at fault injection | **Latency Overview** | `ICMP RTT (Average)` | ~60s after `netem_apply.sh` |
+| E2 | Packet loss jump (loss exps only) | **Latency Overview** | `ICMP Packet Loss` | During Exp 03, 04, 05, 06 |
+| E3 | IF anomaly score rising | **Anomaly Detection** | `Anomaly Scores Over Time` | When score first crosses threshold (MTTD frame) |
+| E4 | EMA Z-score rising | **Model Comparison — IF vs EMA** | `Per-Metric Z-Scores — $device` | When EMA first flags; note which metric triggered |
+| E5 | Both models on one screen | **Model Comparison — IF vs EMA** | `Anomaly Score — $device` (Score Comparison row) | Peak of fault window; shows IF + EMA together |
+| E6 | Terminal: `scenarios.sh` output | SSH terminal on Pi | n/a | Save raw text too — this is your ground truth |
+| E7 | Mitigation command (if triggered) | **Model Comparison — IF vs EMA** | `Detection Summary — All Devices × Both Models` table | When mitigator fires command |
 
 ---
 
@@ -460,18 +476,20 @@ Open Grafana before starting. Set time range to "last 15 minutes" and auto-refre
 
 Post-analysis visuals. Most require data from completed experiments.
 
-| # | What to Capture | Source | Story It Tells |
-|---|----------------|--------|----------------|
-| A1 | Full experiment run timeline | Experiment/Fault Injection dashboard | Fault phases + anomaly flags overlaid on same chart |
-| A2 | MTTD bar chart (IF vs EMA, per experiment) | Calculated from Postgres + ground truth CSV | Core result — headline metric |
-| A3 | LAN vs WiFi MTTD comparison | Derived from A2 | Does link type affect detection speed? |
-| A4 | False alert rate table | `anomaly_events` during baseline window | Model reliability during normal operation |
-| A5 | Feature importance during delay fault | Feature Window Explorer dashboard | Which features drove IF detection |
-| A6 | Feature importance during loss fault | Feature Window Explorer dashboard | Different feature signature for loss vs delay |
-| A7 | Anomaly score trajectory (fault → recovery) | Anomaly Detection | Set time range around one full experiment run |
-| A8 | Model agreement/disagreement table | Model Comparison dashboard | When IF and EMA disagree — what does it mean? |
-| A9 | Pi 4 vs Pi 5 MTTD comparison | Calculated from A2 | Hardware effect on detection sensitivity |
-| A10 | Mitigation impact: before/after latency | Latency Overview | Show latency drop after failover/set_interval |
+| # | What to Capture | Dashboard | Exact Panel Name | Notes |
+|---|----------------|-----------|-----------------|-------|
+| A1 | Full experiment timeline | **Experiment / Fault Injection** | `Anomaly Score vs Threshold` + `ICMP RTT During Experiment` | Set time range to span one full experiment run |
+| A2 | Detection & mitigation table | **Experiment / Fault Injection** | `Detection & Mitigation Timeline` | Shows fault phases and detection events together |
+| A3 | MTTD stat | **Experiment / Fault Injection** | `Avg MTTD (Mean Time to Detect)` | Repeat per experiment, capture stat value |
+| A4 | Feature signatures (delay fault) | **Feature Window Explorer** | `Feature: RTT Mean` + `Feature: RTT Std (Jitter)` | Shows which features spiked during delay injection |
+| A5 | Feature signatures (loss fault) | **Feature Window Explorer** | `Feature: Loss Mean` + `Feature: HTTP & DNS Error Rates` | Different feature signature vs delay |
+| A6 | Normal vs anomalous comparison | **Feature Window Explorer** | `Normal vs Anomalous — Feature Comparison` | Table comparing baseline vs fault feature values |
+| A7 | Model agreement table | **Model Comparison — IF vs EMA** | `Model Agreement — $device` | When did IF and EMA agree/disagree |
+| A8 | Mitigation before/after latency | **Mitigation Effectiveness** | `Latency Around Mitigation Events` + `Impact Reduction: Before vs After Mitigation` | If mitigator triggered |
+| A9 | Jitter during delay experiments | **Experiment / Fault Injection** | `Jitter (RTT Max - Min) During Experiment` | Captures injected jitter (±20ms) |
+| A10 | Per-metric Z-scores at detection | **Model Comparison — IF vs EMA** | `Per-Metric Z-Scores — $device` | Shows which metric drove EMA detection |
+
+**Note — A2/A3 MTTD:** The `Avg MTTD` stat panel uses a hardcoded `fault_start` variable. Set the dashboard variable `fault_start` to the timestamp from your `scenarios.sh` ground truth log before screenshotting.
 
 ---
 
