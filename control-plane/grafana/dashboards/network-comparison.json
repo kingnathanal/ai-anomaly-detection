@@ -114,7 +114,8 @@
         }
       ],
       "title": "LAN vs WiFi - ICMP RTT",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Direct comparison of ICMP RTT between LAN and WiFi device groups. Visualizes the performance gap and variability difference between connection types."
     },
     {
       "datasource": {
@@ -208,7 +209,8 @@
         }
       ],
       "title": "LAN vs WiFi - Packet Loss",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Packet loss comparison between LAN and WiFi groups. WiFi typically shows higher baseline loss; both should be near 0% under normal conditions."
     },
     {
       "datasource": {
@@ -288,7 +290,8 @@
         }
       ],
       "title": "Network Performance Summary",
-      "type": "table"
+      "type": "table",
+      "description": "Aggregate performance statistics for LAN vs WiFi including RTT, loss, HTTP latency, and DNS latency. Quick reference for network type comparison."
     },
     {
       "datasource": {
@@ -383,7 +386,8 @@
         }
       ],
       "title": "LAN vs WiFi - Bandwidth Estimate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Bandwidth comparison between LAN and WiFi devices over time. Highlights capacity differences and potential congestion periods."
     },
     {
       "datasource": {
@@ -719,7 +723,24 @@
     "network"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "device_id",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "telemetry-postgres"
+        },
+        "query": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
   },
   "time": {
     "from": "now-1h",

@@ -41,7 +41,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -59,7 +60,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -79,7 +82,8 @@
         }
       ],
       "title": "Total Windows Scored",
-      "type": "stat"
+      "type": "stat",
+      "description": "Total number of feature windows evaluated by the anomaly detector in the selected period. Each window represents a 60s aggregation of telemetry data."
     },
     {
       "datasource": {
@@ -100,11 +104,16 @@
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 10
+              },
+              {
                 "color": "red",
-                "value": 1
+                "value": 50
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -122,7 +131,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -142,7 +153,8 @@
         }
       ],
       "title": "Anomalous Windows",
-      "type": "stat"
+      "type": "stat",
+      "description": "Count of windows flagged as anomalous. Compare with total windows to understand the anomaly rate."
     },
     {
       "datasource": {
@@ -184,7 +196,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -204,7 +218,8 @@
         }
       ],
       "title": "Anomaly Rate",
-      "type": "stat"
+      "type": "stat",
+      "description": "Fraction of scored windows flagged as anomalous (0-1 scale). Baseline should be near 0; values above 0.1 during normal operation suggest model tuning is needed."
     },
     {
       "datasource": {
@@ -269,7 +284,10 @@
       "id": 4,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -294,7 +312,8 @@
         }
       ],
       "title": "Feature: RTT Mean",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Mean ICMP RTT extracted from each feature window. This is the primary latency indicator used by the anomaly detection model."
     },
     {
       "datasource": {
@@ -359,7 +378,10 @@
       "id": 5,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -384,7 +406,8 @@
         }
       ],
       "title": "Feature: RTT Std (Jitter)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Standard deviation of RTT within each feature window, representing jitter. Key feature for detecting intermittent degradation."
     },
     {
       "datasource": {
@@ -449,7 +472,10 @@
       "id": 6,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -474,7 +500,8 @@
         }
       ],
       "title": "Feature: Loss Mean",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Mean packet loss within each feature window. Even small increases from 0% baseline are significant for anomaly detection."
     },
     {
       "datasource": {
@@ -539,7 +566,10 @@
       "id": 7,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -564,7 +594,8 @@
         }
       ],
       "title": "Feature: HTTP Latency Mean",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Mean HTTP GET latency per feature window. Complements ICMP RTT by measuring application-layer performance."
     },
     {
       "datasource": {
@@ -629,7 +660,10 @@
       "id": 8,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -654,7 +688,8 @@
         }
       ],
       "title": "Feature: DNS Latency Mean",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Mean DNS resolution time per feature window. DNS degradation can indicate upstream network issues."
     },
     {
       "datasource": {
@@ -719,7 +754,10 @@
       "id": 9,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -744,7 +782,8 @@
         }
       ],
       "title": "Feature: HTTP & DNS Error Rates",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "HTTP and DNS failure rates per window (0-1 scale). Non-zero values during baseline indicate probe reliability issues."
     },
     {
       "datasource": {
@@ -772,7 +811,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -823,7 +863,9 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -878,7 +920,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -894,7 +937,9 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true
@@ -913,7 +958,7 @@
           "refId": "A"
         }
       ],
-      "title": "Normal vs Anomalous — Feature Comparison",
+      "title": "Normal vs Anomalous \u2014 Feature Comparison",
       "description": "Side-by-side average feature values for normal windows vs. anomalous windows. Highlights which features drive anomaly detection.",
       "type": "table"
     }

@@ -41,11 +41,16 @@
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 10
+              },
+              {
                 "color": "red",
-                "value": 1
+                "value": 50
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -85,7 +90,8 @@
         }
       ],
       "title": "Total Anomalies Detected",
-      "type": "stat"
+      "type": "stat",
+      "description": "Total number of anomaly events flagged by the detector in the selected time range. Higher counts may indicate ongoing network issues or noisy thresholds."
     },
     {
       "datasource": {
@@ -159,7 +165,8 @@
         }
       ],
       "title": "False Alert Rate",
-      "type": "stat"
+      "type": "stat",
+      "description": "Number of anomaly alerts per hour during the selected period. Values below 1/hour are typical for a well-tuned model; above 5/hour suggests threshold tuning is needed."
     },
     {
       "datasource": {
@@ -181,14 +188,15 @@
               },
               {
                 "color": "yellow",
-                "value": 1
+                "value": 5
               },
               {
                 "color": "red",
-                "value": 5
+                "value": 20
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -228,7 +236,8 @@
         }
       ],
       "title": "Mitigations Applied",
-      "type": "stat"
+      "type": "stat",
+      "description": "Count of mitigation actions that were successfully applied by edge agents. Compare with total anomalies to gauge automation effectiveness."
     },
     {
       "datasource": {
@@ -249,7 +258,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -289,7 +299,8 @@
         }
       ],
       "title": "Current Model Version",
-      "type": "stat"
+      "type": "stat",
+      "description": "The anomaly detection model version currently producing scores. Useful for tracking which model generated which results during experiments."
     },
     {
       "datasource": {
@@ -344,7 +355,8 @@
                 "value": 80
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -411,7 +423,8 @@
         }
       ],
       "title": "Anomaly Scores Over Time",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Time series of anomaly scores from the detector, plotted per device. Scores crossing the threshold line indicate detected anomalies."
     },
     {
       "datasource": {
@@ -439,7 +452,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -518,7 +532,8 @@
         }
       ],
       "title": "Recent Anomaly Events",
-      "type": "table"
+      "type": "table",
+      "description": "Detailed table of recent anomaly events including device, score, threshold, and detection window. Use for debugging false positives or missed detections."
     }
   ],
   "refresh": "30s",

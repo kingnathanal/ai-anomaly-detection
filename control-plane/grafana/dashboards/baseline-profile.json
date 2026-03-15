@@ -3,7 +3,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -20,28 +23,69 @@
   "liveNow": false,
   "panels": [
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "axisCenteredZero": false, "axisLabel": "ms", "axisPlacement": "auto",
-            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20,
-            "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2,
-            "pointSize": 5, "showPoints": "never", "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "axisCenteredZero": false,
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
-      "options": { "legend": { "calcs": ["mean", "min", "max", "stdDev"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max",
+            "stdDev"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -50,31 +94,72 @@
         }
       ],
       "title": "ICMP RTT - Rolling Average (2m windows)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Rolling 2-minute average of ICMP round-trip time per device. Establishes the normal RTT baseline; deviations indicate potential network degradation."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "axisCenteredZero": false, "axisLabel": "ms", "axisPlacement": "auto",
-            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20,
-            "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2,
-            "pointSize": 5, "showPoints": "never", "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "axisCenteredZero": false,
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
       "id": 2,
-      "options": { "legend": { "calcs": ["mean", "max", "stdDev"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "max",
+            "stdDev"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -83,31 +168,73 @@
         }
       ],
       "title": "ICMP Jitter (RTT Max - Min Spread)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Spread between max and min RTT in 2-minute windows, indicating jitter. LAN devices typically show <5ms spread; WiFi may show 10-30ms."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "axisCenteredZero": false, "axisLabel": "ms", "axisPlacement": "auto",
-            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20,
-            "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2,
-            "pointSize": 5, "showPoints": "never", "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "axisCenteredZero": false,
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
       "id": 3,
-      "options": { "legend": { "calcs": ["mean", "min", "max", "stdDev"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max",
+            "stdDev"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -116,31 +243,73 @@
         }
       ],
       "title": "HTTP Latency - Rolling Average (2m windows)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Rolling 2-minute average of HTTP GET latency per device. Helps establish normal HTTP performance baseline for anomaly detection training."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "axisCenteredZero": false, "axisLabel": "ms", "axisPlacement": "auto",
-            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 20,
-            "gradientMode": "scheme", "lineInterpolation": "smooth", "lineWidth": 2,
-            "pointSize": 5, "showPoints": "never", "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "axisCenteredZero": false,
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "scheme",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
       "id": 4,
-      "options": { "legend": { "calcs": ["mean", "min", "max", "stdDev"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean",
+            "min",
+            "max",
+            "stdDev"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -149,28 +318,63 @@
         }
       ],
       "title": "DNS Latency - Rolling Average (2m windows)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Rolling 2-minute average of DNS resolution time per device. Normal values are typically <50ms; sustained increases suggest DNS issues."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "gridPos": {
+        "h": 10,
+        "w": 24,
+        "x": 0,
+        "y": 16
+      },
       "id": 5,
       "options": {
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
         "showHeader": true,
-        "sortBy": [{ "desc": false, "displayName": "device_id" }]
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "device_id"
+          }
+        ]
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -179,28 +383,63 @@
         }
       ],
       "title": "Baseline Statistical Profile (per device)",
-      "type": "table"
+      "type": "table",
+      "description": "Statistical summary of each device's baseline metrics including mean, std dev, min, max, and percentiles. Use as reference for anomaly threshold calibration."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
-          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] }
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "none"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 26
+      },
       "id": 6,
       "options": {
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
         "showHeader": true,
-        "sortBy": [{ "desc": false, "displayName": "network_type" }]
+        "sortBy": [
+          {
+            "desc": false,
+            "displayName": "network_type"
+          }
+        ]
       },
       "pluginVersion": "10.0.0",
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -209,31 +448,70 @@
         }
       ],
       "title": "LAN vs WiFi - Statistical Comparison",
-      "type": "table"
+      "type": "table",
+      "description": "Aggregate comparison of LAN vs WiFi network performance statistics. Highlights the expected performance gap between wired and wireless connections."
     },
     {
-      "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "telemetry-postgres"
+      },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
+          "color": {
+            "mode": "palette-classic"
+          },
           "custom": {
-            "axisCenteredZero": false, "axisLabel": "ms", "axisPlacement": "auto",
-            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 0,
-            "gradientMode": "none", "lineInterpolation": "smooth", "lineWidth": 2,
-            "pointSize": 5, "showPoints": "never", "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "axisCenteredZero": false,
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 26
+      },
       "id": 7,
-      "options": { "legend": { "calcs": ["mean"], "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "options": {
+        "legend": {
+          "calcs": [
+            "mean"
+          ],
+          "displayMode": "table",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
         {
-          "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "telemetry-postgres"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -242,18 +520,25 @@
         }
       ],
       "title": "RTT Standard Deviation (2m windows)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Standard deviation of RTT in 2-minute windows, measuring jitter stability. Higher values indicate inconsistent network performance."
     }
   ],
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["baseline", "statistics"],
+  "tags": [
+    "baseline",
+    "statistics"
+  ],
   "templating": {
     "list": [
       {
         "current": {},
-        "datasource": { "type": "grafana-postgresql-datasource", "uid": "telemetry-postgres" },
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "telemetry-postgres"
+        },
         "definition": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
         "hide": 0,
         "includeAll": true,
@@ -269,7 +554,10 @@
       }
     ]
   },
-  "time": { "from": "now-1h", "to": "now" },
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "",
   "title": "Baseline Statistical Profile",

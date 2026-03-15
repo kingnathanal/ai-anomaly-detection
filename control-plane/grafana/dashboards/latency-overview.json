@@ -151,7 +151,8 @@
         }
       ],
       "title": "ICMP RTT (Average)",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Average ICMP round-trip time per device over time. LAN devices typically show 1-5ms; WiFi 5-30ms. Sustained spikes indicate network degradation."
     },
     {
       "datasource": {
@@ -249,7 +250,8 @@
         }
       ],
       "title": "HTTP Latency",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "HTTP GET response time per device over time. Includes DNS + TCP + server processing time. Compare with ICMP RTT to isolate application vs network issues."
     },
     {
       "datasource": {
@@ -347,7 +349,8 @@
         }
       ],
       "title": "DNS Latency",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "DNS resolution time per device over time. Sudden increases may indicate DNS server issues or upstream connectivity problems."
     },
     {
       "datasource": {
@@ -449,7 +452,8 @@
         }
       ],
       "title": "ICMP Packet Loss",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Packet loss percentage per device over time. Any sustained loss above 0% on LAN is concerning; WiFi may show intermittent low-level loss."
     },
     {
       "datasource": {
@@ -501,11 +505,11 @@
               },
               {
                 "color": "yellow",
-                "value": 5
+                "value": 2
               },
               {
                 "color": "red",
-                "value": 2
+                "value": 5
               }
             ]
           },
@@ -551,7 +555,8 @@
         }
       ],
       "title": "Bandwidth Estimate",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Estimated bandwidth per device in Mbps. Drops below expected capacity may indicate congestion or link degradation."
     }
   ],
   "refresh": "10s",

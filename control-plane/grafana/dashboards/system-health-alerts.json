@@ -101,7 +101,10 @@
       "id": 1,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -125,8 +128,9 @@
           "refId": "A"
         }
       ],
-      "title": "LAN RTT — Alert Threshold: 80ms",
-      "type": "timeseries"
+      "title": "LAN RTT \u2014 Alert Threshold: 80ms",
+      "type": "timeseries",
+      "description": "LAN ICMP RTT with a static 80ms alert threshold line. Simple threshold fallback when ML detection is unavailable."
     },
     {
       "datasource": {
@@ -195,7 +199,10 @@
       "id": 2,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -219,8 +226,9 @@
           "refId": "A"
         }
       ],
-      "title": "WiFi RTT — Alert Threshold: 110ms",
-      "type": "timeseries"
+      "title": "WiFi RTT \u2014 Alert Threshold: 110ms",
+      "type": "timeseries",
+      "description": "WiFi ICMP RTT with a static 110ms alert threshold line. Higher threshold accounts for normal WiFi variability."
     },
     {
       "datasource": {
@@ -289,7 +297,10 @@
       "id": 3,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -313,8 +324,9 @@
           "refId": "A"
         }
       ],
-      "title": "Packet Loss — Alert Threshold: 5%",
-      "type": "timeseries"
+      "title": "Packet Loss \u2014 Alert Threshold: 5%",
+      "type": "timeseries",
+      "description": "Packet loss with a static 5% alert threshold. Any device exceeding this warrants investigation."
     },
     {
       "datasource": {
@@ -383,7 +395,10 @@
       "id": 4,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -407,8 +422,9 @@
           "refId": "A"
         }
       ],
-      "title": "HTTP Error Rate — Alert Threshold: 20%",
-      "type": "timeseries"
+      "title": "HTTP Error Rate \u2014 Alert Threshold: 20%",
+      "type": "timeseries",
+      "description": "HTTP probe error rate with a static 20% threshold. Sustained errors above this level indicate endpoint or connectivity failure."
     },
     {
       "collapsed": false,
@@ -468,7 +484,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -537,7 +555,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -606,7 +626,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -675,7 +697,9 @@
         "orientation": "auto",
         "reduceOptions": {
           "values": false,
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": ""
         },
         "textMode": "auto"
@@ -695,7 +719,7 @@
         }
       ],
       "title": "Anomaly Rate (last hour)",
-      "description": "Alerts if >10/hour — possible model drift.",
+      "description": "Alerts if >10/hour \u2014 possible model drift.",
       "type": "stat"
     },
     {
@@ -765,7 +789,10 @@
       "id": 9,
       "options": {
         "legend": {
-          "calcs": ["mean", "max"],
+          "calcs": [
+            "mean",
+            "max"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -842,7 +869,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -855,7 +883,9 @@
       "id": 10,
       "options": {
         "legend": {
-          "calcs": ["sum"],
+          "calcs": [
+            "sum"
+          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true
@@ -921,7 +951,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": []
       },
@@ -937,7 +968,9 @@
         "footer": {
           "countRows": false,
           "fields": "",
-          "reducer": ["sum"],
+          "reducer": [
+            "sum"
+          ],
           "show": false
         },
         "showHeader": true,
@@ -976,7 +1009,24 @@
     "health"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "device_id",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "telemetry-postgres"
+        },
+        "query": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
   },
   "time": {
     "from": "now-1h",

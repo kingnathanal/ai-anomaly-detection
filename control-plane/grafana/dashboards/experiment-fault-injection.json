@@ -63,6 +63,14 @@
               {
                 "color": "green",
                 "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 60
+              },
+              {
+                "color": "red",
+                "value": 120
               }
             ]
           },
@@ -128,11 +136,16 @@
                 "value": null
               },
               {
+                "color": "yellow",
+                "value": 10
+              },
+              {
                 "color": "red",
-                "value": 1
+                "value": 50
               }
             ]
-          }
+          },
+          "unit": "short"
         },
         "overrides": []
       },
@@ -172,7 +185,8 @@
         }
       ],
       "title": "Anomalies Detected",
-      "type": "stat"
+      "type": "stat",
+      "description": "Total anomaly events during the experiment window. Compare with expected fault injection timeline to assess detection coverage."
     },
     {
       "datasource": {
@@ -242,7 +256,8 @@
         }
       ],
       "title": "Alert Rate (per hour)",
-      "type": "stat"
+      "type": "stat",
+      "description": "Anomaly alert rate during the experiment. Should spike during fault injection periods and return to baseline during recovery phases."
     },
     {
       "datasource": {
@@ -434,7 +449,8 @@
         }
       ],
       "title": "Packet Loss During Experiment",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "Packet loss percentage over time during fault injection. Should correlate with netem loss injection periods."
     },
     {
       "datasource": {
@@ -485,7 +501,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
@@ -675,7 +692,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "unit": "none"
         },
         "overrides": [
           {
