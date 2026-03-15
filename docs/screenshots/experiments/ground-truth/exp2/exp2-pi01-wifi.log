@@ -1,0 +1,9 @@
+# ── Scenario run starting ──────────────────────────────
+{"ts":"2026-03-15T22:30:34.462Z","event":"scenario_start","iface":"wlan0","delay_ms":200,"jitter_ms":40,"loss_pct":5}
+{"ts":"2026-03-15T22:30:34.466Z","phase":"baseline","params":"none","duration_s":120,"iface":"wlan0"}
+{"ts":"2026-03-15T22:32:34.478Z","phase":"delay_200ms","params":"-d 200 -j 40 -t 54.198.26.122","duration_s":300,"iface":"wlan0"}
+{"ts":"2026-03-15T22:37:34.485Z","phase":"recover_1","params":"none","duration_s":120,"iface":"wlan0"}
+{"ts":"2026-03-15T22:39:34.496Z","phase":"loss_5pct","params":"-l 5 -t 54.198.26.122","duration_s":180,"iface":"wlan0"}
+{"ts":"2026-03-15T22:42:34.503Z","phase":"recover_2","params":"none","duration_s":120,"iface":"wlan0"}
+{"ts":"2026-03-15T22:44:34.509Z","event":"scenario_end","iface":"wlan0"}
+# ── Scenario run complete ──────────────────────────────
