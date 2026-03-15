@@ -1,0 +1,452 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Tracks which endpoint (primary vs failover) each edge node is probing — shows failover events and their latency impact",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "id": 100,
+      "title": "Active Probe Target",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Current active probe target for each edge node (primary or backup). Changes when mitigator issues failover_endpoint command.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [
+            {"options": {"primary": {"color": "#1f77b4", "index": 0, "text": "PRIMARY"}}, "type": "value"},
+            {"options": {"backup": {"color": "#2ca02c", "index": 1, "text": "BACKUP (failover)"}}, "type": "value"}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "blue", "value": null}]}
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 1},
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "/^target_id$/", "values": false},
+        "textMode": "value_and_name"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT device_id, target_id\nFROM telemetry_measurements\nWHERE ts = (\n  SELECT MAX(ts) FROM telemetry_measurements t2\n  WHERE t2.device_id = telemetry_measurements.device_id\n    AND t2.ts >= $__timeFrom()::timestamptz\n)\nAND ts >= $__timeFrom()::timestamptz\nORDER BY device_id;",
+          "refId": "A"
+        }
+      ],
+      "title": "Current Probe Target per Node",
+      "transformations": [
+        {"id": "labelsToFields", "options": {}},
+        {"id": "organize", "options": {"renameByName": {"device_id": "Node", "target_id": "Target"}}}
+      ],
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "id": 101,
+      "title": "Probe Volume — Primary vs Failover",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Number of HTTP probe measurements per minute to the PRIMARY endpoint per node. When a node failsover this line drops to zero.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "probes/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "id": 2,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  device_id,\n  count(*) AS probe_count\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary'\n  AND http_ok IS NOT NULL\nGROUP BY 1, 2\nORDER BY 1;",
+          "refId": "A"
+        }
+      ],
+      "title": "Probes → PRIMARY Endpoint (per node/min)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Number of HTTP probe measurements per minute to the FAILOVER endpoint per node. Non-zero only after a failover_endpoint mitigation command is applied.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "probes/min",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 60,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "id": 3,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  device_id,\n  count(*) AS probe_count\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup'\n  AND http_ok IS NOT NULL\nGROUP BY 1, 2\nORDER BY 1;",
+          "refId": "A"
+        }
+      ],
+      "title": "Probes → FAILOVER Endpoint (per node/min)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Combined stacked view: total probes to primary (blue) vs failover (green) across all nodes. The crossover point is when the mitigator fired.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "fixed"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "probes/min (all nodes)",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "normal"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "Primary Probes"},
+            "properties": [{"id": "color", "value": {"fixedColor": "#1f77b4", "mode": "fixed"}}]
+          },
+          {
+            "matcher": {"id": "byName", "options": "Failover Probes"},
+            "properties": [{"id": "color", "value": {"fixedColor": "#2ca02c", "mode": "fixed"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 14},
+      "id": 4,
+      "options": {
+        "legend": {"calcs": ["sum"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  'Primary Probes' AS metric,\n  count(*) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary'\n  AND http_ok IS NOT NULL\nGROUP BY 1\nUNION ALL\nSELECT\n  date_trunc('minute', ts) AS time,\n  'Failover Probes' AS metric,\n  count(*) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup'\n  AND http_ok IS NOT NULL\nGROUP BY 1\nORDER BY 1;",
+          "refId": "A"
+        }
+      ],
+      "title": "All Nodes — Primary vs Failover Probe Volume (Stacked)",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
+      "id": 102,
+      "title": "Latency — Primary vs Failover",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "HTTP latency comparison: primary endpoint (affected by fault injection) vs failover endpoint (clean path). The latency drop after failover shows the impact reduction.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "ms",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "gradientMode": "none",
+            "hideFrom": {"legend": false, "tooltip": false, "viz": false},
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 4,
+            "scaleDistribution": {"type": "linear"},
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {"group": "A", "mode": "none"},
+            "thresholdsStyle": {"mode": "off"}
+          },
+          "unit": "ms"
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byRegexp", "options": ".*primary.*"},
+            "properties": [{"id": "color", "value": {"fixedColor": "#e03131", "mode": "fixed"}}]
+          },
+          {
+            "matcher": {"id": "byRegexp", "options": ".*backup.*"},
+            "properties": [{"id": "color", "value": {"fixedColor": "#2f9e44", "mode": "fixed"}}]
+          }
+        ]
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 23},
+      "id": 5,
+      "options": {
+        "legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom", "showLegend": true},
+        "tooltip": {"mode": "multi", "sort": "none"}
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [primary]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary'\n  AND http_latency_ms IS NOT NULL\n  AND ($device_id = 'all' OR device_id = ANY(ARRAY[$device_id]::text[]))\nGROUP BY 1, 2\nUNION ALL\nSELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [backup]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup'\n  AND http_latency_ms IS NOT NULL\n  AND ($device_id = 'all' OR device_id = ANY(ARRAY[$device_id]::text[]))\nGROUP BY 1, 2\nORDER BY 1;",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Latency — Primary vs Failover per Node",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Mean HTTP latency while probing primary vs failover endpoint across the selected time window. Lower backup latency confirms the failover mitigation is effective.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 100},
+              {"color": "red", "value": 250}
+            ]
+          },
+          "unit": "ms"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 31},
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "horizontal",
+        "reduceOptions": {"calcs": ["mean"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT 'Primary' AS endpoint, round(avg(http_latency_ms)::numeric,1) AS avg_latency_ms\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary' AND http_latency_ms IS NOT NULL\nUNION ALL\nSELECT 'Failover' AS endpoint, round(avg(http_latency_ms)::numeric,1) AS avg_latency_ms\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup' AND http_latency_ms IS NOT NULL;",
+          "refId": "A"
+        }
+      ],
+      "title": "Avg HTTP Latency — Primary vs Failover",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "Impact reduction = percentage improvement in HTTP latency after switching to the failover endpoint. Positive value means failover is faster than primary (during fault).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 0},
+              {"color": "green", "value": 30}
+            ]
+          },
+          "unit": "percent",
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 4, "w": 12, "x": 12, "y": 31},
+      "id": 7,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false},
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "WITH primary_avg AS (\n  SELECT avg(http_latency_ms) AS lat\n  FROM telemetry_measurements\n  WHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n    AND target_id = 'primary' AND http_latency_ms IS NOT NULL\n),\nbackup_avg AS (\n  SELECT avg(http_latency_ms) AS lat\n  FROM telemetry_measurements\n  WHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n    AND target_id = 'backup' AND http_latency_ms IS NOT NULL\n)\nSELECT\n  round(((p.lat - b.lat) / NULLIF(p.lat, 0) * 100)::numeric, 1) AS impact_reduction_pct\nFROM primary_avg p, backup_avg b;",
+          "refId": "A"
+        }
+      ],
+      "title": "Failover Impact Reduction %",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 35},
+      "id": 103,
+      "title": "Failover Events Timeline",
+      "type": "row"
+    },
+    {
+      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "description": "All mitigation actions of type failover_endpoint — shows exactly when each node was switched to the backup endpoint.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "custom": {"align": "auto", "cellOptions": {"type": "auto"}, "inspect": false},
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        },
+        "overrides": [
+          {"matcher": {"id": "byName", "options": "status"}, "properties": [{"id": "custom.width", "value": 100}]},
+          {"matcher": {"id": "byName", "options": "action"}, "properties": [{"id": "custom.width", "value": 160}]},
+          {"matcher": {"id": "byName", "options": "device_id"}, "properties": [{"id": "custom.width", "value": 120}]}
+        ]
+      },
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 36},
+      "id": 8,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {"countRows": false, "fields": "", "reducer": ["sum"], "show": false},
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "issued_ts"}]
+      },
+      "targets": [
+        {
+          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT\n  issued_ts,\n  device_id,\n  action,\n  status,\n  status_ts,\n  EXTRACT(EPOCH FROM (status_ts - issued_ts)) * 1000 AS ack_latency_ms,\n  params::text AS params\nFROM mitigation_actions\nWHERE issued_ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND action IN ('failover_endpoint', 'set_interval')\nORDER BY issued_ts DESC\nLIMIT 100;",
+          "refId": "A"
+        }
+      ],
+      "title": "Failover & Interval Commands — Full Event Log",
+      "type": "table"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["anomaly-detection", "failover", "endpoints"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "all", "value": "all"},
+        "datasource": {"type": "postgres", "uid": "telemetry-db"},
+        "definition": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Node",
+        "multi": false,
+        "name": "device_id",
+        "options": [],
+        "query": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
+        "refresh": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Probe Endpoint Tracking — Primary vs Failover",
+  "uid": "probe-endpoint-tracking",
+  "version": 1
+}

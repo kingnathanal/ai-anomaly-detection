@@ -428,3 +428,74 @@ sudo find /opt/control-plane/ -name '*.pyc' -newer /opt/control-plane/ingestion/
 # Subscribe to MQTT for live debugging (requires auth)
 mosquitto_sub -h localhost -u <user> -P <pass> -t "telemetry/#" -C 1
 ```
+
+---
+
+## Decision #10 — Dedicated Failover EC2 Instead of Co-located Backup Port
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-03-15 |
+| **Type** | Architecture decision (not a bug) |
+| **Component** | Backup / failover endpoint infrastructure |
+| **Context** | Experiment 4+ requires a clean, measurable HTTP latency improvement after mitigation fires a `failover_endpoint` command. |
+
+### Problem With Co-located Backup
+
+Through Experiments 1–3, the backup endpoint was `http://54.198.26.122:8082/health` —
+the **same EC2 instance** as the primary, running on a different port. This created two
+compounding problems:
+
+1. **netem scoping gap:** The `tc filter u32` rule in `netem_apply.sh -t <ip>` matches
+   all traffic to the primary IP regardless of port. Traffic to port 8082 (backup) on the
+   same IP was therefore **also degraded** during fault phases — making failover
+   ineffective as a mitigation for HTTP latency.
+
+2. **No measurable impact reduction:** Even with the port-based filter workaround (`-p 8080`)
+   added later, using the same physical host means the backup shares CPU, memory, and
+   upstream network with the degraded primary. The latency delta was not clean enough to
+   publish as an "impact reduction" metric in the research paper.
+
+   > Exp 3 post-failover HTTP latency was ~1052 ms — **worse** than the degraded primary —
+   > because the old backup was `https://1.1.1.1` (Cloudflare, TLS overhead). Even after
+   > switching to port 8082 on the same host, the improvement would be marginal and
+   > confounded by shared resources.
+
+### Decision
+
+Deploy a **separate AWS EC2 instance** (`ubuntu@failover`, IP `34.226.196.133`) running
+the same Flask health app on port 8080. The failover server is:
+
+- On a **different physical host** — no shared resources with the primary
+- At a **different IP** — `tc netem` scoped to `54.198.26.122` has zero effect on traffic
+  to `34.226.196.133`; no port filtering needed
+- Independently reachable — can survive a primary EC2 failure in production
+
+### Configuration Changes
+
+| Component | Before | After |
+|-----------|--------|-------|
+| Pi `.env` `HTTP_URL_BACKUP` | `http://54.198.26.122:8082/health` | `http://34.226.196.133:8080/health` |
+| Mitigator `BACKUP_HTTP_URL` | `http://54.198.26.122:8082/health` | `http://34.226.196.133:8080/health` |
+| `scenarios.sh` netem scope | `-t PRIMARY_IP -p 8080` | `-t PRIMARY_IP` (IP-only, port not needed) |
+| `health-backup.service` on primary EC2 | Running on port 8082 | No longer needed (can be disabled) |
+
+Failover server setup documented in `docs/runbook.md` → *Failover Server* section.
+Systemd service committed at `control-plane/systemd/health-failover.service`.
+
+### Expected Outcome for Exp 4+
+
+| Phase | HTTP Latency |
+|-------|-------------|
+| Baseline (primary, no fault) | ~45 ms |
+| During fault (primary, 100ms netem) | ~295 ms |
+| Post-failover (backup, separate EC2, no netem) | ~45 ms |
+| **Impact reduction** | **~85%** |
+
+### Lesson
+
+When designing a failover testbed, the backup endpoint **must be on a different network
+path** than the primary. A same-host backup on a different port is convenient but
+defeats the purpose: it shares the fault domain, inflates measurement noise, and makes
+impact-reduction claims unpublishable. Always model the backup after your production
+architecture from the start.
