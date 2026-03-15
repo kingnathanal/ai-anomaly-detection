@@ -1890,7 +1890,8 @@
       "boundElements": [],
       "updated": 0,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "f5"
     },
     {
       "type": "text",
@@ -1926,7 +1927,8 @@
       "containerId": null,
       "originalText": "AWS EC2 \u2014 FAILOVER ENDPOINT  (34.226.196.133 \u00b7 ec2-34-226-196-133.compute-1.amazonaws.com)",
       "lineHeight": 1.25,
-      "baseline": 13
+      "baseline": 13,
+      "index": "f6"
     },
     {
       "type": "rectangle",
@@ -1955,7 +1957,8 @@
       "boundElements": [],
       "updated": 0,
       "link": null,
-      "locked": false
+      "locked": false,
+      "index": "f7"
     },
     {
       "type": "text",
@@ -1991,7 +1994,8 @@
       "containerId": null,
       "originalText": "Health App  (gunicorn \u00b7 2 workers)\nPORT 8080  \u00b7  GET /health \u2192 200 OK\nBackup probe target after failover",
       "lineHeight": 1.25,
-      "baseline": 13
+      "baseline": 13,
+      "index": "f8"
     },
     {
       "type": "arrow",
@@ -2035,7 +2039,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "f9"
     },
     {
       "type": "text",
@@ -2071,7 +2076,8 @@
       "containerId": null,
       "originalText": "BACKUP_HTTP_URL\n(failover_endpoint cmd)",
       "lineHeight": 1.25,
-      "baseline": 11
+      "baseline": 11,
+      "index": "g0"
     },
     {
       "type": "arrow",
@@ -2115,7 +2121,8 @@
       "startBinding": null,
       "endBinding": null,
       "startArrowhead": null,
-      "endArrowhead": "arrow"
+      "endArrowhead": "arrow",
+      "index": "g1"
     },
     {
       "type": "text",
@@ -2151,7 +2158,8 @@
       "containerId": null,
       "originalText": "HTTP probe\n(after failover)",
       "lineHeight": 1.25,
-      "baseline": 11
+      "baseline": 11,
+      "index": "g2"
     },
     {
       "type": "text",
@@ -2187,7 +2195,8 @@
       "containerId": null,
       "originalText": "- - \u2192  HTTP probe after failover (backup EC2)",
       "lineHeight": 1.25,
-      "baseline": 13
+      "baseline": 13,
+      "index": "g3"
     }
   ],
   "appState": {
