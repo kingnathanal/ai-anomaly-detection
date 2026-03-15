@@ -9,10 +9,16 @@ set -euo pipefail
 #   sudo bash scenarios.sh [-i <iface>]
 #
 # Default interface: eth0
+# Fault injection is scoped to the primary endpoint IP (PRIMARY_IP) so
+# backup endpoint traffic is unaffected — enabling clean before/after
+# latency comparison after failover mitigation.
 # ─────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IFACE="${1:-eth0}"
+
+# Primary EC2 endpoint IP — netem faults are scoped to this destination only
+PRIMARY_IP="54.198.26.122"
 
 log_phase() {
   local phase="$1" params="$2" duration_s="$3"
@@ -39,14 +45,14 @@ echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"event\":\"scenario_start\
 # Phase 1: Baseline (clean) — 2 minutes
 run_phase "baseline"       120
 
-# Phase 2: Delay 100ms ± 20ms — 5 minutes
-run_phase "delay_100ms"    300  -d 100 -j 20
+# Phase 2: Delay 100ms ± 20ms — 5 minutes (scoped to primary IP)
+run_phase "delay_100ms"    300  -d 100 -j 20 -t "$PRIMARY_IP"
 
 # Phase 3: Recovery — 2 minutes
 run_phase "recover_1"      120
 
-# Phase 4: Packet loss 2% — 3 minutes
-run_phase "loss_2pct"      180  -l 2
+# Phase 4: Packet loss 2% — 3 minutes (scoped to primary IP)
+run_phase "loss_2pct"      180  -l 2 -t "$PRIMARY_IP"
 
 # Phase 5: Recovery — 2 minutes
 run_phase "recover_2"      120
