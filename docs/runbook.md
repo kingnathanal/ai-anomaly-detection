@@ -561,3 +561,16 @@ docs/
 | 2026-03-15 | Fixed `pq: operator is not unique` in Model Comparison | Added `::timestamptz` casts to `$__timeTo()`/`$__timeFrom()` in EXTRACT queries (panels id=2, id=7) |
 | 2026-03-15 | Fixed Model Agreement panel (no data)              | Replaced exact window timestamp JOIN with `date_trunc('minute', window_end_ts)` — IF/EMA run ~20s apart so exact match always returned 0 rows |
 | 2026-03-15 | Captured Tier 1 baseline screenshots               | B1–B11 captured; saved to `docs/screenshots/baseline/`; system healthy, all 6 nodes reporting |
+| 2026-03-15 | Ran fault injection scenarios on all 6 nodes       | All nodes synchronized within ~1s; ground truth logs saved to `docs/screenshots/experiments/ground-truth/`; see phase table below |
+
+### 2026-03-15 Experiment — Ground Truth Phase Timestamps (UTC)
+
+| Phase | Start | End | Duration |
+|---|---|---|---|
+| baseline (clean) | 16:52:39Z | 16:54:39Z | 2 min |
+| delay 100ms ±20ms | 16:54:39Z | 16:59:39Z | 5 min |
+| recover_1 | 16:59:39Z | 17:01:39Z | 2 min |
+| loss 2% | 17:01:39Z | 17:04:39Z | 3 min |
+| recover_2 | 17:04:39Z | 17:06:39Z | 2 min |
+
+All 6 nodes ran simultaneously. WiFi → `wlan0`, LAN → `eth0`. All exited cleanly.
