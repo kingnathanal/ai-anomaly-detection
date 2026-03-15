@@ -67,11 +67,25 @@ All 6 nodes faulted. Separate failover EC2. Interface auto-detected. ~45 minutes
 
 ### Fault Parameters (varies per experiment)
 
-| Experiment | Delay | Jitter | Loss | Purpose |
-|------------|-------|--------|------|---------|
-| **Exp 1** ✅ | 100ms | ±20ms | 2% | Moderate/realistic — baseline for comparison |
-| **Exp 2** | 200ms | ±40ms | 5% | Severe — larger signal, expected faster MTTD |
-| **Exp 3** | 50ms | ±10ms | 1% | Subtle/borderline — tests detection floor |
+| Experiment | Delay | Jitter | Loss | Score Interval | Purpose |
+|------------|-------|--------|------|---------------|---------|
+| **Exp 1** ✅ | 100ms | ±20ms | 2% | 120s | Moderate — baseline for comparison |
+| **Exp 2** ✅ | 200ms | ±40ms | 5% | 120s | Severe — larger signal |
+| **Exp 3** | 50ms | ±10ms | 1% | 120s | Subtle — tests detection floor |
+| **Exp 4** | 100ms | ±20ms | 2% | **30s** | Same as Exp 1, faster scoring — MTTD comparison |
+| **Exp 5** | 200ms | ±40ms | 4% | **30s** | Severe + faster scoring |
+
+**Why 120s was chosen as the initial scoring interval:**
+- `WINDOW_LENGTH_S = 120s` (features.py) — one window = 12 samples at 10s interval
+- Setting `SCORE_INTERVAL_S = WINDOW_LENGTH_S` gives non-overlapping windows — the simplest, most interpretable scoring cadence
+- Conservative choice for a t3.micro EC2 with 6 nodes — low DB read load
+- Median MTTD = ~60s (half the interval), max = 120s
+
+**Why 30s for Exp 4/5:**
+- Keeps `WINDOW_LENGTH_S=120s` — same features, same model quality
+- Scores the most recent 120s window every 30s (4 overlapping passes per window)
+- Reduces median MTTD from ~60s → ~15s
+- Directly comparable to Exp 1/2 — isolates the effect of scoring frequency alone
 
 ### Scenario Phases
 
@@ -112,28 +126,58 @@ cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 200 -j 40 -l 5 >
 | Field | Detail |
 |-------|--------|
 | **Status** | Pending |
-| **Planned start** | ~45 min after Exp 2 completes (~23:58Z) |
-| **Delay** | **50ms ± 10ms** |
-| **Loss** | **1%** |
+| **Fault** | 50ms ± 10ms delay, 1% loss |
+| **Score interval** | 120s (unchanged) |
 | **Notes** | Subtle/borderline fault. Tests detection floor. May not trigger all nodes — that's a valid result. |
 
 Launch command:
 ```bash
-# On each node:
 cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 50 -j 10 -l 1 > /tmp/exp3-pi00.log 2>&1
+```
+
+### Experiment 4 *(pending — faster scoring, moderate fault)*
+
+| Field | Detail |
+|-------|--------|
+| **Status** | Pending |
+| **Fault** | 100ms ± 20ms delay, 2% loss (same as Exp 1) |
+| **Score interval** | **30s** (change `SCORE_INTERVAL_S=30` in detector `.env`, restart detector) |
+| **Notes** | Direct MTTD comparison to Exp 1. Isolates effect of scoring frequency. |
+
+Launch command:
+```bash
+# 1. Update detector on EC2 first:
+ssh ubuntu@ec2 "sed -i 's/SCORE_INTERVAL_S=120/SCORE_INTERVAL_S=30/' /opt/control-plane/detector/.env && sudo systemctl restart detector"
+
+# 2. Then launch on all nodes:
+cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 100 -j 20 -l 2 > /tmp/exp4-pi00.log 2>&1
+```
+
+### Experiment 5 *(pending — faster scoring, severe fault)*
+
+| Field | Detail |
+|-------|--------|
+| **Status** | Pending |
+| **Fault** | 200ms ± 40ms delay, 4% loss |
+| **Score interval** | **30s** (keep from Exp 4) |
+| **Notes** | Severe fault with fast scoring. Compare to Exp 2 for MTTD improvement. |
+
+Launch command:
+```bash
+cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 200 -j 40 -l 4 > /tmp/exp5-pi00.log 2>&1
 ```
 
 ### Expected Metrics
 
-| Metric | Exp 1 (100ms/2%) | Exp 2 (200ms/5%) | Exp 3 (50ms/1%) |
-|--------|-----------------|-----------------|-----------------|
-| Baseline HTTP latency | ~80ms | ~80ms | ~80ms |
-| HTTP latency during fault | ~280ms | ~380ms | ~130ms |
-| HTTP latency after failover | ~80ms | ~80ms | ~80ms |
-| Impact reduction (est.) | ~72% | ~79% | ~38% |
-| Detection MTTD (est.) | ~49–92s | ~30–60s (faster) | ~90–180s (slower/borderline) |
-| Mitigation lag (est.) | ~148–208s | ~120–180s | ~200–300s |
-| Notes | Baseline ✅ done | Larger signal, faster | May not detect all nodes |
+| Metric | Exp 1 ✅ (100ms/2%, 120s) | Exp 2 ✅ (200ms/5%, 120s) | Exp 3 (50ms/1%, 120s) | Exp 4 (100ms/2%, 30s) | Exp 5 (200ms/4%, 30s) |
+|--------|--------------------------|--------------------------|----------------------|----------------------|----------------------|
+| Baseline HTTP | 80ms | 80ms | 80ms | 80ms | 80ms |
+| Fault HTTP | 273ms | 308ms | ~130ms | ~275ms | ~370ms |
+| Post-failover HTTP | 78ms | 78ms | ~80ms | ~78ms | ~78ms |
+| Impact reduction | 72% | ~87% | ~38% | ~72% | ~79% |
+| MTTD (actual/expected) | 49–92s | 118s | slow/miss? | **~15–30s** | **~15–30s** |
+| Nodes detected | 5/6 | **6/6** | TBD | TBD | TBD |
+| Notes | pi02-wifi missed | All detected | detection floor | MTTD comparison | MTTD comparison |
 
 ### Pre-Experiment Checklist
 

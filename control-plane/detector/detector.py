@@ -36,6 +36,14 @@ _shutdown = threading.Event()
 
 MODEL_VERSION = "iforest-v1"
 BASELINE_HOURS = int(os.environ.get("BASELINE_HOURS", "24"))
+# SCORE_INTERVAL_S: how often (in seconds) the detector scores the most recent window.
+# Must be <= WINDOW_LENGTH_S (features.py, default 120s) so each cycle has a full
+# window of samples to score. Setting this equal to WINDOW_LENGTH_S (120s) means
+# non-overlapping windows and median MTTD of ~60s. Reducing it (e.g. 30s) causes
+# overlapping windows but scores 4x more often, reducing median MTTD to ~15s at
+# the cost of more DB reads and more anomaly_events rows.
+# Chosen default of 120s: conservative, matches window length, low DB load for a
+# 6-node testbed on a t3.micro EC2. For production with tighter SLAs, reduce to 30s.
 SCORE_INTERVAL_S = int(os.environ.get("SCORE_INTERVAL_S", "120"))
 CONTAMINATION = float(os.environ.get("CONTAMINATION", "0.01"))
 THRESHOLD_PERCENTILE = float(os.environ.get("THRESHOLD_PERCENTILE", "97.5"))
