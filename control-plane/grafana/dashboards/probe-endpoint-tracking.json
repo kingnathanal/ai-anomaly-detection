@@ -288,7 +288,7 @@
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [primary]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary'\n  AND http_latency_ms IS NOT NULL\n  AND ($device_id = 'all' OR device_id = ANY(ARRAY[$device_id]::text[]))\nGROUP BY 1, 2\nUNION ALL\nSELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [backup]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup'\n  AND http_latency_ms IS NOT NULL\n  AND ($device_id = 'all' OR device_id = ANY(ARRAY[$device_id]::text[]))\nGROUP BY 1, 2\nORDER BY 1;",
+          "rawSql": "SELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [primary]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'primary'\n  AND http_latency_ms IS NOT NULL\n  AND device_id = ANY(ARRAY[$device_id]::text[])\nGROUP BY 1, 2\nUNION ALL\nSELECT\n  date_trunc('minute', ts) AS time,\n  device_id || ' [backup]' AS metric,\n  round(avg(http_latency_ms)::numeric, 1) AS value\nFROM telemetry_measurements\nWHERE ts BETWEEN $__timeFrom()::timestamptz AND $__timeTo()::timestamptz\n  AND target_id = 'backup'\n  AND http_latency_ms IS NOT NULL\n  AND device_id = ANY(ARRAY[$device_id]::text[])\nGROUP BY 1, 2\nORDER BY 1;",
           "refId": "A"
         }
       ],
@@ -434,7 +434,7 @@
         "hide": 0,
         "includeAll": true,
         "label": "Node",
-        "multi": false,
+        "multi": true,
         "name": "device_id",
         "options": [],
         "query": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
