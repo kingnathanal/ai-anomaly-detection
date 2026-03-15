@@ -17,8 +17,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IFACE="${1:-eth0}"
 
-# Primary EC2 endpoint IP — netem faults are scoped to this destination only
+# Primary EC2 endpoint IP + port — netem faults are scoped to this destination only
+# so backup endpoint traffic (port 8082, same host) flows clean after failover
 PRIMARY_IP="54.198.26.122"
+PRIMARY_PORT="8080"
 
 log_phase() {
   local phase="$1" params="$2" duration_s="$3"
@@ -45,14 +47,14 @@ echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)\",\"event\":\"scenario_start\
 # Phase 1: Baseline (clean) — 2 minutes
 run_phase "baseline"       120
 
-# Phase 2: Delay 100ms ± 20ms — 5 minutes (scoped to primary IP)
-run_phase "delay_100ms"    300  -d 100 -j 20 -t "$PRIMARY_IP"
+# Phase 2: Delay 100ms ± 20ms — 5 minutes (scoped to primary IP:port only)
+run_phase "delay_100ms"    300  -d 100 -j 20 -t "$PRIMARY_IP" -p "$PRIMARY_PORT"
 
 # Phase 3: Recovery — 2 minutes
 run_phase "recover_1"      120
 
-# Phase 4: Packet loss 2% — 3 minutes (scoped to primary IP)
-run_phase "loss_2pct"      180  -l 2 -t "$PRIMARY_IP"
+# Phase 4: Packet loss 2% — 3 minutes (scoped to primary IP:port only)
+run_phase "loss_2pct"      180  -l 2 -t "$PRIMARY_IP" -p "$PRIMARY_PORT"
 
 # Phase 5: Recovery — 2 minutes
 run_phase "recover_2"      120
