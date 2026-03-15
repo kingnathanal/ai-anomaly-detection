@@ -599,6 +599,23 @@ Before restarting the detector after fault-injection experiments, either:
 3. **Wait for a full clean baseline window** — restart at least 24 hours after the last experiment (not practical in time-constrained research)
 4. **Exclude known fault windows** — tag fault periods in the DB and filter them from baseline training
 
+### Update — p97.5 is the Threshold Sweet Spot
+
+After lowering to p95, pi01-wifi began generating false positives during clean baseline (score 0.648–0.656 vs threshold 0.583, ~33% false-positive rate over 6 min). Root cause: p95 cuts too aggressively on noisy WiFi baselines.
+
+Reverted to `THRESHOLD_PERCENTILE=97.5` (the original code default, 2026-03-15 23:48Z). **New thresholds: 0.652–0.715 across all 6 nodes.** All baseline scores immediately dropped to 0.34–0.46 (well below thresholds) — zero false positives.
+
+**Why p97.5 is robust to ~5% contamination:**
+- Fault windows make up ~5.3% of the 24h rolling baseline (339/6387 windows for pi03-lan)
+- Fault-phase scores (0.70–0.77) sit in the **95th–100th percentile** of the baseline distribution
+- p97.5 sits *just below* the contamination zone — it is not meaningfully shifted by a 5% contamination tail
+- p95 is shifted (threshold drops, false positives); p99 over-weights the contamination (threshold inflates, missed detections)
+- **p97.5 is the stable operating point** for contamination ≤ ~5%
+
 ### Lesson
 
-Never restart the anomaly detector immediately after fault-injection experiments if using a rolling baseline window. The fault data contaminates the calibration distribution and can raise thresholds above the fault signal you're trying to detect. In production, use Option 1 or 4 (pinned clean baseline or fault-window exclusion). For this study, `THRESHOLD_PERCENTILE=95.0` provides sufficient headroom and is retained for all remaining experiments.
+Never restart the anomaly detector immediately after fault-injection experiments if using a rolling baseline window. The fault data contaminates the calibration distribution and can raise thresholds above the fault signal you're trying to detect. In production, use Option 1 or 4 (pinned clean baseline or fault-window exclusion). For this study:
+
+- **Use `THRESHOLD_PERCENTILE=97.5`** — robust to up to ~5% contamination, matches clean-baseline behavior
+- Do **not** use p99 (over-corrects for contamination) or p95 (causes false positives on noisy WiFi nodes)
+- The `.env` default has been updated to `THRESHOLD_PERCENTILE=97.5` and should be considered the production default for this testbed
