@@ -159,7 +159,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT model_version, ROUND(COUNT(*) FILTER (WHERE is_anomaly)::numeric / GREATEST(EXTRACT(EPOCH FROM ($__timeTo() - $__timeFrom())) / 3600.0, 0.01), 2) as alerts_per_hour FROM anomaly_events WHERE event_ts BETWEEN $__timeFrom() AND $__timeTo() GROUP BY model_version ORDER BY model_version",
+          "rawSql": "SELECT model_version, ROUND(COUNT(*) FILTER (WHERE is_anomaly)::numeric / GREATEST(EXTRACT(EPOCH FROM ($__timeTo()::timestamptz - $__timeFrom()::timestamptz)) / 3600.0, 0.01), 2) as alerts_per_hour FROM anomaly_events WHERE event_ts BETWEEN $__timeFrom() AND $__timeTo() GROUP BY model_version ORDER BY model_version",
           "refId": "A"
         }
       ],
@@ -723,7 +723,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT device_id, model_version, COUNT(*) as total_scored, COUNT(*) FILTER (WHERE is_anomaly) as anomalies, ROUND(AVG(anomaly_score)::numeric, 4) as avg_score, ROUND(MAX(anomaly_score)::numeric, 4) as max_score, ROUND(COUNT(*) FILTER (WHERE is_anomaly)::numeric / GREATEST(EXTRACT(EPOCH FROM ($__timeTo() - $__timeFrom())) / 3600.0, 0.01), 2) as alerts_per_hour FROM anomaly_events WHERE event_ts BETWEEN $__timeFrom() AND $__timeTo() GROUP BY device_id, model_version ORDER BY device_id, model_version",
+          "rawSql": "SELECT device_id, model_version, COUNT(*) as total_scored, COUNT(*) FILTER (WHERE is_anomaly) as anomalies, ROUND(AVG(anomaly_score)::numeric, 4) as avg_score, ROUND(MAX(anomaly_score)::numeric, 4) as max_score, ROUND(COUNT(*) FILTER (WHERE is_anomaly)::numeric / GREATEST(EXTRACT(EPOCH FROM ($__timeTo()::timestamptz - $__timeFrom()::timestamptz)) / 3600.0, 0.01), 2) as alerts_per_hour FROM anomaly_events WHERE event_ts BETWEEN $__timeFrom() AND $__timeTo() GROUP BY device_id, model_version ORDER BY device_id, model_version",
           "refId": "A"
         }
       ],
