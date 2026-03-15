@@ -499,3 +499,68 @@ path** than the primary. A same-host backup on a different port is convenient bu
 defeats the purpose: it shares the fault domain, inflates measurement noise, and makes
 impact-reduction claims unpublishable. Always model the backup after your production
 architecture from the start.
+
+---
+
+## Issue #10 — Per-Node Threshold Calibration: Why Each Node Has a Different Threshold
+
+| Field | Detail |
+|-------|--------|
+| **Date** | 2026-03-15 |
+| **Severity** | Research observation / design consideration |
+| **Component** | Detector (`thresholds.py`, `detector.py`) |
+| **Symptom** | During Exp 1, pi02-wifi scored 0.675–0.684 on the Isolation Forest throughout the delay fault window but never tripped `is_anomaly=true` (threshold: 0.6854). All other 5 nodes did detect and failover. pi02-wifi only fired once — during the loss phase, exactly at threshold (0.6854 = 0.6854), but `ANOMALY_PERSIST_WINDOWS=3` requires 3 consecutive anomaly windows, so no mitigation was issued. |
+
+### Why Thresholds Differ Per Node
+
+The detector trains one Isolation Forest model **per (device_id, target_id) pair** using that node's own 24-hour baseline telemetry. The threshold is then set at the **97.5th percentile** of that node's baseline anomaly scores (`calibrate_percentile()` in `thresholds.py`).
+
+Observed thresholds during Exp 1 (iforest-v1):
+
+| Node | IF Threshold | Threshold Explanation |
+|------|--------------|-----------------------|
+| pi00-wifi | 0.6437 | Low baseline variance → low 97.5th pct |
+| pi01-wifi | 0.6636 | Moderate baseline variance |
+| pi02-wifi | 0.6854 | **Higher baseline variance** → higher 97.5th pct |
+| pi03-lan | 0.6847 | Moderate baseline variance |
+| pi04-lan | 0.6847 | Moderate baseline variance |
+| pi05-lan | 0.6784 | Low-moderate baseline variance |
+
+Nodes with naturally noisier baselines (e.g., WiFi nodes experiencing ambient wireless jitter) produce higher anomaly scores during normal operation. Their 97.5th percentile is therefore higher, making the threshold harder to cross. A 100ms delay that clearly anomalises a LAN node or a stable WiFi node may only push a noisier node to a score just below its personal threshold.
+
+### Production Design Question: Uniform vs. Per-Node Thresholds
+
+**Option 1 — Uniform global threshold (e.g., 0.70 for all nodes)**
+- ✅ Simple to configure and reason about
+- ✅ Consistent detection sensitivity across fleet
+- ❌ Generates more false positives on naturally noisy nodes (e.g., WiFi)
+- ❌ May miss subtle faults on very stable nodes (threshold too high relative to their scores)
+- ❌ Ignores the fact that "anomalous" is inherently relative to each node's normal
+
+**Option 2 — Dynamic per-node threshold (current implementation)**
+- ✅ Calibrated to each node's individual normal — the correct statistical approach
+- ✅ LAN and WiFi nodes can coexist without one type drowning in false alerts
+- ❌ A noisy baseline window (e.g., maintenance, transient interference) inflates the threshold permanently until the next service restart / retrain
+- ❌ Thresholds can diverge enough that two identical nodes in the same environment behave differently (as seen: pi02-wifi vs pi00-wifi)
+
+**Option 3 — Per-device-type threshold (recommended for production)**
+- Group nodes by network type (LAN vs WiFi) or hardware class
+- Set one threshold per group, calibrated from the **median 97.5th percentile** across all nodes in that group
+- Prevents single-node baseline noise from inflating that node's threshold above the group norm
+- Provides more consistent detection behaviour across the fleet while still respecting LAN/WiFi differences
+
+**Option 4 — Online adaptive threshold (best long-term)**
+- Maintain a rolling EMA of recent anomaly scores per node
+- Threshold adjusts continuously as the node's "normal" drifts (e.g., seasonal traffic, firmware updates)
+- Prevents the threshold-freeze problem when the Isolation Forest isn't retrained for weeks
+- Currently out of scope — noted as future work in the paper
+
+### Recommendation for This Study
+
+The per-node threshold is statistically correct for this research context: we want the model to learn each node's individual normal. The pi02-wifi miss is a real finding — it demonstrates the **sensitivity limitation** of static per-node calibration when baseline noise is high. This should be reported honestly in the paper rather than papered over with a manually tuned threshold.
+
+For production deployment, **Option 3 (per-device-type grouping)** is the pragmatic choice: it retains per-class calibration while smoothing out single-node baseline noise.
+
+### Lesson
+
+Per-node threshold calibration is the right default for heterogeneous edge fleets. However, it is only as good as the baseline it was trained on. A single noisy or atypical baseline window can permanently raise one node's detection floor. In production, either (a) use per-device-type group thresholds, or (b) implement online threshold adaptation. Never use a single global threshold across mixed LAN/WiFi fleets — the false-positive rate on wireless nodes will be unacceptably high.
