@@ -27,7 +27,7 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Current active probe target for each edge node (primary or backup). Changes when mitigator issues failover_endpoint command.",
       "fieldConfig": {
         "defaults": {
@@ -52,7 +52,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -75,7 +75,7 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Number of HTTP probe measurements per minute to the PRIMARY endpoint per node. When a node failsover this line drops to zero.",
       "fieldConfig": {
         "defaults": {
@@ -112,7 +112,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -124,7 +124,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Number of HTTP probe measurements per minute to the FAILOVER endpoint per node. Non-zero only after a failover_endpoint mitigation command is applied.",
       "fieldConfig": {
         "defaults": {
@@ -161,7 +161,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -173,7 +173,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Combined stacked view: total probes to primary (blue) vs failover (green) across all nodes. The crossover point is when the mitigator fired.",
       "fieldConfig": {
         "defaults": {
@@ -219,7 +219,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -238,7 +238,7 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "HTTP latency comparison: primary endpoint (affected by fault injection) vs failover endpoint (clean path). The latency drop after failover shows the impact reduction.",
       "fieldConfig": {
         "defaults": {
@@ -284,7 +284,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
@@ -296,7 +296,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Mean HTTP latency while probing primary vs failover endpoint across the selected time window. Lower backup latency confirms the failover mitigation is effective.",
       "fieldConfig": {
         "defaults": {
@@ -325,7 +325,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -337,7 +337,7 @@
       "type": "stat"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "Impact reduction = percentage improvement in HTTP latency after switching to the failover endpoint. Positive value means failover is faster than primary (during fault).",
       "fieldConfig": {
         "defaults": {
@@ -367,7 +367,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -386,7 +386,7 @@
       "type": "row"
     },
     {
-      "datasource": {"type": "postgres", "uid": "telemetry-db"},
+      "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
       "description": "All mitigation actions of type failover_endpoint — shows exactly when each node was switched to the backup endpoint.",
       "fieldConfig": {
         "defaults": {
@@ -410,7 +410,7 @@
       },
       "targets": [
         {
-          "datasource": {"type": "postgres", "uid": "telemetry-db"},
+          "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
@@ -429,7 +429,7 @@
     "list": [
       {
         "current": {"selected": false, "text": "all", "value": "all"},
-        "datasource": {"type": "postgres", "uid": "telemetry-db"},
+        "datasource": {"type": "postgres", "uid": "telemetry-postgres"},
         "definition": "SELECT DISTINCT device_id FROM telemetry_measurements ORDER BY device_id",
         "hide": 0,
         "includeAll": true,
