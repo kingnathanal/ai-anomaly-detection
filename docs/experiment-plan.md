@@ -53,8 +53,23 @@ measurements, we capture a periodic bandwidth estimate alongside telemetry.
 
 ## Experiment Design
 
-We run **4 experiments** to evaluate detection across network types and fault types.
-Each experiment targets **one node** while the others serve as controls.
+We run **6 experiments** using a **2×3 factorial design** — every node is tested,
+and each fault type is applied to both a LAN and a WiFi node. This enables direct
+LAN vs. WiFi comparison for every fault type.
+
+```
+Fault Type        LAN Node      WiFi Node
+──────────────────────────────────────────
+Delay 100ms       pi03-lan      pi00-wifi
+Packet loss 2%    pi04-lan      pi01-wifi
+Full scenario     pi05-lan      pi02-wifi
+```
+
+Each experiment targets **one node** while all remaining nodes serve as controls.
+Running both network types per fault type is critical for the research question:
+*does the detector perform equally well on stable LAN vs. noisy WiFi links?*
+
+---
 
 ### Experiment 1 — LAN Delay Injection (pi03-lan)
 
@@ -65,7 +80,7 @@ Each experiment targets **one node** while the others serve as controls.
 | Recovery | 3 min | None | Verify return to normal |
 
 **Target:** `pi03-lan` via `eth0`
-**Controls:** pi04-lan, pi05-lan (same network type, no injection)
+**Controls:** all other 5 nodes (no injection)
 
 ```bash
 # On pi03-lan
@@ -76,8 +91,8 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 
 **What to measure:**
 - MTTD: time from netem_apply → first `is_anomaly=true` for pi03-lan
-- False positives: any anomaly events on pi04-lan or pi05-lan
-- RTT jump magnitude: expected baseline ~38ms → ~138ms
+- False positives on control nodes during injection window
+- RTT jump magnitude: expected baseline ~39ms → ~139ms
 
 ---
 
@@ -90,7 +105,7 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 | Recovery | 3 min | None | Verify return to normal |
 
 **Target:** `pi00-wifi` via `wlan0`
-**Controls:** pi01-wifi, pi02-wifi
+**Controls:** all other 5 nodes (no injection)
 
 ```bash
 # On pi00-wifi
@@ -100,7 +115,7 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
 ```
 
 **What to measure:**
-- MTTD: compare with Experiment 1 — WiFi baseline is noisier (~51ms), so 100ms added delay may be harder to detect
+- MTTD: compare with Experiment 1 — WiFi baseline is noisier (~53ms), so 100ms added delay may be harder to detect
 - Does the per-device model correctly account for WiFi's higher natural variance?
 
 ---
@@ -114,7 +129,7 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
 | Recovery | 3 min | None | Verify return to normal |
 
 **Target:** `pi04-lan` via `eth0`
-**Controls:** pi03-lan, pi05-lan
+**Controls:** all other 5 nodes (no injection)
 
 ```bash
 # On pi04-lan
@@ -130,7 +145,32 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 
 ---
 
-### Experiment 4 — Full Scenario (pi05-lan)
+### Experiment 4 — WiFi Packet Loss (pi01-wifi)
+
+| Phase | Duration | Fault | Purpose |
+|-------|----------|-------|---------|
+| Pre-baseline | 3 min | None | Confirm normal scoring |
+| **Packet loss** | **5 min** | **5%** | Same loss fault on WiFi — harder signal amid natural variation |
+| Recovery | 3 min | None | Verify return to normal |
+
+**Target:** `pi01-wifi` via `wlan0`
+**Controls:** all other 5 nodes (no injection)
+
+```bash
+# On pi01-wifi
+sudo bash /opt/edge-agent/fault_injection/netem_apply.sh -i wlan0 -l 5
+# ... wait 5 min ...
+sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i wlan0
+```
+
+**What to measure:**
+- MTTD vs Experiment 3 (LAN) — does WiFi packet loss take longer to detect?
+- WiFi already has some natural variance; model must discriminate 5% injected loss from baseline fluctuations
+- Compare false positive rate on LAN controls during this WiFi experiment
+
+---
+
+### Experiment 5 — LAN Full Scenario (pi05-lan)
 
 | Phase | Duration | Fault | Purpose |
 |-------|----------|-------|---------|
@@ -141,6 +181,7 @@ sudo bash /opt/edge-agent/fault_injection/netem_clear.sh -i eth0
 | Recovery 2 | 2 min | None | Final recovery |
 
 **Target:** `pi05-lan` via `eth0`
+**Controls:** all other 5 nodes (no injection)
 
 ```bash
 # On pi05-lan — runs all phases automatically
@@ -149,8 +190,33 @@ sudo bash /opt/edge-agent/fault_injection/scenarios.sh eth0 | tee /tmp/scenario_
 
 **What to measure:**
 - End-to-end automated scenario with ground truth timestamps
-- Two distinct fault types in one run
-- Recovery detection between faults
+- Two distinct fault types in one run; recovery detection between faults
+- Does detection of second fault (loss) come faster after model has seen the device before?
+
+---
+
+### Experiment 6 — WiFi Full Scenario (pi02-wifi)
+
+| Phase | Duration | Fault | Purpose |
+|-------|----------|-------|---------|
+| Baseline | 2 min | None | Clean reference |
+| Delay | 5 min | 100ms ± 20ms | Latency fault on WiFi |
+| Recovery 1 | 2 min | None | Recovery |
+| Packet loss | 3 min | 2% | Loss fault on WiFi |
+| Recovery 2 | 2 min | None | Final recovery |
+
+**Target:** `pi02-wifi` via `wlan0`
+**Controls:** all other 5 nodes (no injection)
+
+```bash
+# On pi02-wifi — runs all phases automatically
+sudo bash /opt/edge-agent/fault_injection/scenarios.sh wlan0 | tee /tmp/scenario_$(date +%s).jsonl
+```
+
+**What to measure:**
+- Direct WiFi vs. LAN comparison for multi-fault scenario (Experiment 5 vs. 6)
+- MTTD per fault type on WiFi — is there a consistent detection gap vs. LAN?
+- Recovery time on WiFi vs. LAN
 
 ---
 
@@ -164,9 +230,11 @@ and scoring windows don't overlap between experiments.
 | 1 | T+0 | LAN Delay | pi03-lan | 100ms delay |
 | 2 | T+30min | WiFi Delay | pi00-wifi | 100ms delay |
 | 3 | T+60min | LAN Loss | pi04-lan | 5% loss |
-| 4 | T+90min | Full Scenario | pi05-lan | delay → loss |
+| 4 | T+90min | WiFi Loss | pi01-wifi | 5% loss |
+| 5 | T+120min | LAN Full Scenario | pi05-lan | delay → loss |
+| 6 | T+150min | WiFi Full Scenario | pi02-wifi | delay → loss |
 
-**Total experiment window:** ~2 hours
+**Total experiment window:** ~3.5 hours
 
 ---
 
