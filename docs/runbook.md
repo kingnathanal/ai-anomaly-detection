@@ -560,3 +560,4 @@ docs/
 | 2026-03-15 | Fixed 98 dashboard issues (P0+P1)                  | All 11 dashboards: descriptions, units, thresholds, template vars; fixed threshold ordering on latency-overview and model-comparison |
 | 2026-03-15 | Fixed `pq: operator is not unique` in Model Comparison | Added `::timestamptz` casts to `$__timeTo()`/`$__timeFrom()` in EXTRACT queries (panels id=2, id=7) |
 | 2026-03-15 | Fixed Model Agreement panel (no data)              | Replaced exact window timestamp JOIN with `date_trunc('minute', window_end_ts)` — IF/EMA run ~20s apart so exact match always returned 0 rows |
+| 2026-03-15 | Captured Tier 1 baseline screenshots               | B1–B11 captured; saved to `docs/screenshots/baseline/`; system healthy, all 6 nodes reporting |
