@@ -8,14 +8,26 @@ set -euo pipefail
 # Usage:
 #   sudo bash scenarios.sh [-i <iface>]
 #
-# Default interface: eth0
+# Default interface: auto-detected from hostname.
+#   Hosts containing "wifi" → wlan0
+#   All others             → eth0
+# Override with -i <iface> if needed.
+#
 # Fault injection is scoped to the primary endpoint IP (PRIMARY_IP) so
 # failover endpoint traffic (34.226.196.133) is unaffected — enabling clean
 # before/after latency comparison after failover mitigation.
 # ─────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IFACE="${1:-eth0}"
+
+# Auto-detect interface from hostname; allow explicit override via -i
+_HOSTNAME="$(hostname)"
+if [[ "$_HOSTNAME" == *wifi* ]]; then
+  DEFAULT_IFACE="wlan0"
+else
+  DEFAULT_IFACE="eth0"
+fi
+IFACE="${1:-$DEFAULT_IFACE}"
 
 # Primary EC2 endpoint IP — netem faults are scoped to this IP only.
 # Backup (failover) is on a separate IP (34.226.196.133), so IP-only scoping
