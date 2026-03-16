@@ -334,7 +334,32 @@ Restarting the detector to change `SCORE_INTERVAL_S` caused it to retrain on a 2
 **No adversarial or correlated failures.**
 Fault injection is applied independently per node. Correlated failures (e.g. upstream router degradation affecting all nodes simultaneously) were not tested.
 
-### 6.2 Future Work
+### 6.2 Design Evolution from Original Proposal
+
+The original proposal (COSC Winter 2026) defined the high-level architecture correctly but several dimensions shifted during implementation. These deviations are worth documenting — they reflect genuine research iteration rather than scope creep.
+
+**What changed and why:**
+
+| Dimension | Proposed | Implemented | Rationale |
+|-----------|----------|-------------|-----------|
+| Node count | 3–5 Pis | 6 nodes (3 LAN + 3 WiFi) | Explicit LAN/WiFi split was needed to characterize jitter-floor differences — this became a central finding |
+| Detection comparison | Static threshold vs statistical vs ML (3-way) | IF vs EMA Z-Score | EMA provides a cleaner statistical baseline than rules-only; formal threshold runs de-scoped as gray failure value is low |
+| Fault scenarios | Delay, jitter, loss, bandwidth limiting, endpoint unavailability | Delay + jitter + loss only | Bandwidth limiting and endpoint unavailability produce hard failures easily caught by any monitor; out of scope for gray failure research |
+| Control experiment | "No mitigation" vs mitigation | Mitigation always enabled | Before/after latency within the same run is more statistically controlled than cross-run comparison |
+| Evaluation metrics | MTTD, FPR, FNR, latency reduction | MTTD, false alert rate, impact reduction | FNR not computable reliably at small scale; false alert rate (alerts/hr) is more operationally meaningful |
+| Primary independent variable | Fault severity | **Scoring interval** | Discovered mid-project that MTTD is driven by when the scoring cycle fires, not how large the fault is — this became the headline contribution |
+| Failover target | Backup endpoint (implied co-located) | Dedicated separate EC2 | Co-located backup shared the netem fault domain; dedicated EC2 gives a clean before/after signal |
+| Second model | Not proposed | EMA Z-Score detector | Added organically during development; provides false alert rate comparison at no additional infrastructure cost |
+
+**What the proposal got right:** Core architecture ("cloud decides, edge executes"), MQTT transport, PostgreSQL + Grafana, Isolation Forest, `tc netem` fault injection, Python + systemd — all implemented as designed.
+
+**Unanticipated findings:**
+1. **Scoring interval dominates MTTD** — a single config change (`SCORE_INTERVAL_S: 120 → 30`) produced a 67% MTTD reduction; fault severity did not.
+2. **WiFi natural jitter creates a detection floor** — 50ms faults are masked by ~30ms std dev in clean WiFi baseline, requiring per-node threshold calibration.
+3. **Threshold calibration is fragile** — p95 fires false positives; p99 causes missed detections after baseline contamination; p97.5 emerged empirically as the sweet spot.
+4. **Packet loss alone insufficient** — 2–5% loss without correlated delay does not shift the 9-feature multivariate IF score above threshold.
+
+### 6.3 Future Work
 - Periodic model retraining on a rolling 24h window (online learning).
 - Per-device adaptive thresholds using EMA of recent scores (eliminates threshold freeze and baseline-noise sensitivity).
 - **Per-device-type group thresholds** as a near-term pragmatic improvement (§6.1 — calibrate from median 97.5th pct per node type, not per individual node).
