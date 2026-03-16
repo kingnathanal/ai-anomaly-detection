@@ -8,12 +8,14 @@
 
 ## Overview
 
-This research designs and evaluates an **unsupervised anomaly detection system** for edge networks that detects gray failures (latency/jitter/loss degradations) and triggers automated mitigation — without labeled training data. The system uses Isolation Forest on windowed ICMP/DNS/HTTP features, MQTT transport, and automated failover via a cloud-controlled mitigation loop.
+Modern cloud services are built with redundancy — multi-region deployments, load balancers, backup endpoints — yet most services only failover when they are **completely unreachable**. Current observability stacks (Prometheus/Grafana, Datadog, CloudWatch) are threshold-based and reactive: they alert after a failure is already impacting users. **Gray failures** — elevated latency, jitter, packet loss — persist silently for minutes before any hard-failure threshold trips, eroding SLAs the entire time.
+
+This research validates whether **unsupervised ML anomaly detection**, inserted alongside existing observability tooling, can detect pre-failure degradation and trigger proactive failover *before* a complete outage — using a reproducible 6-node Raspberry Pi + AWS testbed as a controlled proxy for cloud service endpoints.
 
 **Research questions:**
-1. Can unsupervised IF detect subtle gray failures (≥50ms delay, ≥1% loss) within a single scoring interval?
-2. How does scoring window length trade off MTTD vs. detection rate?
-3. Does automated failover meaningfully reduce latency impact?
+1. Can unsupervised IF detect subtle gray failures within a single scoring interval — and how does scoring window length trade off MTTD vs. detection rate?
+2. Does AI-triggered proactive failover measurably reduce user impact vs. waiting for a hard-failure threshold?
+3. How does Isolation Forest compare to a simpler EMA Z-Score detector on false alert rate and detection coverage?
 
 ---
 

@@ -1,23 +1,27 @@
 # Blog Post Outline — AI-Based Latency Anomaly Detection at the Edge
 
-> Working title: *"Detecting Gray Failures in Edge Networks with Raspberry Pis and Isolation Forest"*
+> Working title: *"Your Backup Endpoint Is Sitting Idle: How AI Anomaly Detection Can Trigger Proactive Failover Before Services Go Down"*
 > **Status:** ✅ All 5 experiments complete. Final numbers confirmed. Ready for drafting.
 
 ---
 
 ## 1. Hook / Introduction
-- What are gray failures? (not full outages — subtle degradations that slip past basic monitoring)
-- Why they matter: real-world impact on edge/IoT systems, CDNs, distributed services
-- One-liner: "I built a testbed with 6 Raspberry Pis and an AWS control plane to automatically detect and mitigate latency anomalies using unsupervised ML."
+- Open with the scenario every engineer has lived: the on-call alert fires at 2am. The service has been degraded for 8 minutes. The backup region is perfectly healthy — it was ready the whole time. Nobody told it to take traffic until the primary was completely unreachable.
+- **The redundancy paradox:** cloud infrastructure is more redundant than ever — multi-region deployments, load balancers, CDN failover, standby databases — but the intelligence to *use* that redundancy is almost always reactive. Services failover only when they're fully down.
+- **Gray failures:** the class of partial degradations — elevated latency, jitter, packet loss, DNS slowdowns — that don't trip any health check but silently degrade UX and erode SLAs. A service with 200ms extra latency and 4% packet loss is technically "up." Datadog is quiet. The backup sits idle.
+- **The thesis:** what if we insert AI anomaly detection into the observability loop — running alongside your existing Grafana/Prometheus stack — to catch these pre-failure conditions and automatically shift traffic *before* the outage completes?
+- One-liner: "I built a testbed with 6 Raspberry Pis and an AWS control plane to prove that unsupervised ML can detect gray failures and trigger proactive failover — intervening during the degradation window, not after the crash."
 
-## 2. The Problem
-- Traditional monitoring (threshold-based) misses gradual degradation
-- Edge networks add complexity: variable link quality, Wi-Fi vs wired, remote nodes
-- What we want: detect anomalies without labeled training data, and respond automatically
+## 2. The Problem — Why Reactive Observability Isn't Enough
+- **How monitoring works today:** Prometheus scrapes metrics every 15s. Engineers write alert rules: `latency_p99 > 2000ms for 5m`. Thresholds are set conservatively to avoid noise. They fire late, after the damage is done.
+- **The threshold problem:** too sensitive → alert fatigue. Not sensitive enough → silent degradation. There's no good static number for "this is abnormal" because "normal" shifts with traffic, time of day, and workload.
+- **What observability tools miss:** gradual degradation patterns that are anomalous *relative to baseline* but never cross a fixed threshold. A service that normally responds in 80ms, now responding in 280ms, is experiencing a 3.5× latency increase — but if the threshold is set at 500ms, nothing fires.
+- **The cost of waiting:** every second between fault onset and failover is user-facing degradation. At 118s MTTD (our worst case), a service has been degrading for nearly 2 minutes before the system reacts.
+- **The redundancy opportunity:** if you have a backup endpoint (and you should), the question isn't *whether* to failover — it's *when*. AI anomaly detection moves that trigger from "when the service is dead" to "when the service is behaving abnormally."
 - Research questions:
-  - How quickly can we detect injected faults? (MTTD)
-  - How many false alerts does the system produce during normal operation?
-  - Does automated mitigation actually reduce impact?
+  - How quickly can unsupervised anomaly detection identify pre-failure degradation? (MTTD)
+  - What is the false alert cost — how often does it fire during normal operation?
+  - Does proactive AI-triggered failover meaningfully reduce user impact vs. waiting for a hard failure?
 
 ## 3. Architecture Overview
 - **Diagram:** Pi cluster → MQTT → EC2 control plane → Postgres → Grafana + failover EC2
