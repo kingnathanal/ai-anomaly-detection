@@ -136,6 +136,38 @@ Two detectors ran concurrently: **Isolation Forest** (9-feature multivariate, wi
 
 ---
 
+## Proposal vs. Reality — What Changed and Why
+
+The original proposal (COSC Winter 2026) laid solid groundwork; execution surfaced several key deviations worth documenting for the paper.
+
+| Dimension | Original Proposal | Actual Implementation | Why It Changed |
+|-----------|------------------|----------------------|---------------|
+| **Node count** | 3–5 Raspberry Pis | **6 nodes** — 3 LAN + 3 WiFi | Expanded to explicitly compare wired vs wireless detection behavior; WiFi baseline jitter became a central finding |
+| **Detection comparison** | 3-way: static threshold vs statistical vs ML (IF) | **IF vs EMA Z-Score** | Formal static threshold runs were replaced by EMA Z-Score — a lightweight statistical model that still runs continuously alongside IF; produces cleaner side-by-side than a rules-only baseline |
+| **Fault scenarios** | Delay, jitter, packet loss, bandwidth limiting, endpoint unavailability | **Delay + jitter + packet loss only** | Bandwidth limiting (`tc tbf`) and simulated endpoint unavailability were de-scoped — they produce hard failures that trivially trigger threshold alerts, reducing the gray-failure research value |
+| **Control experiment** | "No mitigation" runs vs mitigation runs | **Mitigation always enabled** | The impact reduction measurement (before/after latency) within the same run proved more statistically clean than cross-run comparisons with environmental variance |
+| **Evaluation metrics** | MTTD, FPR, FNR, latency reduction | **MTTD, false alert rate, impact reduction** | FNR dropped (not enough missed-detection events to compute reliably); "false alert rate" (alerts/hr during clean baseline) is more operationally meaningful than FPR computed on a small labeled set |
+| **Key independent variable** | Fault severity (delay/loss level) | **Scoring interval** (30s vs 120s) | Discovered mid-project that fault severity doesn't drive MTTD — scoring cadence does. This became the headline finding and drove Exp 4r/5 design |
+| **Failover target** | Backup endpoint (implied co-located) | **Dedicated separate EC2 instance** | Early tests with a co-located backup (port 8082, same EC2) showed netem rules contaminated both endpoints; separate instance gives a clean fault domain |
+| **Second detector** | Not in scope | **EMA Z-Score detector** added | Organic addition during development; provides a meaningful comparison point for false alert rate and detection coverage |
+| **Database** | PostgreSQL | **PostgreSQL + TimescaleDB** | TimescaleDB hypertables added for time-series query performance at 1M+ rows; transparent to application layer |
+| **Broader framing** | IoT/edge networks | **Cloud service reliability** | GM professional context made it clear the finding — "AI can trigger failover before complete outage" — generalizes beyond IoT to any cloud service with redundant endpoints |
+
+### What the Proposal Got Right
+- Core architecture ("cloud decides, edge executes") matched exactly
+- MQTT + Postgres + Grafana + Isolation Forest — all implemented as proposed
+- Fault injection via `tc netem` — exactly as proposed
+- MTTD + latency reduction as primary metrics — held throughout
+- Python + systemd for all services — no deviation
+
+### What the Data Taught Us That the Proposal Didn't Anticipate
+- **Scoring interval dominates MTTD** — not fault severity. A 67% MTTD reduction came from changing one config value (`SCORE_INTERVAL_S: 120 → 30`), not from bigger faults.
+- **WiFi natural jitter sets a detection floor** — 50ms faults are invisible to WiFi nodes because their clean baseline already has ~30ms std dev. This distinction required separate per-node thresholds.
+- **Threshold calibration is fragile** — p95 causes false positives on WiFi; p99 causes missed detections after any baseline contamination. p97.5 emerged as the sweet spot empirically, not by design.
+- **Packet loss alone doesn't trigger IF** — 2–5% loss without delay doesn't shift the 9-feature multivariate score enough. Delay is the primary signal carrier.
+
+---
+
 ## Experimental Design Summary
 
 | Exp | Delay | Loss | Scoring | Detected | MTTD (first) | Purpose |
