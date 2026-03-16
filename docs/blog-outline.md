@@ -82,7 +82,10 @@
 - **Surprise headline finding:** MTTD is NOT governed by fault severity — it's governed by scoring interval. 200ms fault in Exp 2 (120s scoring) → MTTD 118s. Same 200ms fault in Exp 5 (30s scoring) → MTTD 40s. This is the most counterintuitive result worth leading with.
 - **Scoring interval impact:** 30s vs 120s windows → **67% MTTD reduction** (49s → 16s for 100ms fault; 118s → 40s for 200ms fault).
 - **Detection floor:** 50ms/1% — LAN detects (3/3), WiFi misses entirely. Natural WiFi jitter (~±20ms) masks a 50ms fault in a 120s averaged window.
-- **False alert rate:** LAN ~0.26 alerts/hr, WiFi ~0.60 alerts/hr (26-day baseline). Zero false alerts with p97.5 threshold during 5 experiment runs.
+- **False alert rate (IF):** LAN ~0.28 alerts/hr, WiFi ~0.50 alerts/hr (26-day baseline)
+- **False alert rate (EMA):** LAN ~0.08 alerts/hr, WiFi ~0.25 alerts/hr — **3.5× lower on LAN, 2× lower on WiFi**
+- Both models detected all 6 nodes across the 5-experiment suite — no detection misses unique to either model
+- Key model tradeoff: EMA fires on single-metric spikes (any metric >3σ from rolling mean) — simpler, lower false alerts. IF scores the full 9-feature window jointly — higher multivariate sensitivity, more anomaly windows flagged (113 vs 26 across experiments). Model disagreements during baseline were almost entirely IF false positives that EMA correctly ignored.
 - **Impact reduction:** 72% LAN, 65% WiFi — consistent across severities once failover triggers. Automated failover at 158s vs organic recovery at 309s — **2× faster**.
 - **30s window tradeoff:** faster MTTD but higher per-window score variance → borderline WiFi faults missed (4/6 at 30s vs 5/6 at 120s). Recommendation: **adaptive scoring** — 120s default, drop to 30s on first detection.
 - Grafana screenshots needed:

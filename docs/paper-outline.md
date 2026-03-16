@@ -200,12 +200,41 @@ Five experiments across two dimensions:
 - pi00-wifi (later failover): **223s**
 - pi02-wifi (no failover — threshold miss): **309s** ← organic recovery only
 
-#### Table 3: False alert rate (non-experiment days, iforest-v1)
+#### Table 3: False alert rate — IF vs EMA (baseline only, pre-experiments)
 
-| Node type | Alerts/hr | Days sampled |
-|-----------|-----------|--------------|
-| LAN (mean) | 0.26 | 26 |
-| WiFi (mean) | 0.60 | 20 |
+| Node | EMA z-score (alerts/hr) | IF p97.5 (alerts/hr) | EMA improvement |
+|------|:-----------------------:|:--------------------:|:---------------:|
+| pi00-wifi | 0.224 | 0.578 | −61% |
+| pi01-wifi | 0.267 | 0.349 | −24% |
+| pi02-wifi | 0.270 | 0.581 | −54% |
+| pi03-lan | 0.080 | 0.275 | −71% |
+| pi04-lan | 0.083 | 0.233 | −64% |
+| pi05-lan | 0.076 | 0.335 | −77% |
+| **LAN avg** | **0.08/hr** | **0.28/hr** | **3.5× fewer** |
+| **WiFi avg** | **0.25/hr** | **0.50/hr** | **2× fewer** |
+
+> EMA: `ZSCORE_THRESHOLD=3.0`, `EMA_ALPHA=0.1`, 4 tracked metrics (rtt_mean, loss_mean, dns_latency_mean, http_latency_mean). IF: `THRESHOLD_PERCENTILE=97.5`, 9 windowed features.
+
+#### Table 4: Model comparison — score separation and detection
+
+| Metric | EMA z-score | Isolation Forest |
+|--------|:-----------:|:----------------:|
+| Baseline avg score | 1.17 | 0.38 |
+| Baseline p95 score | 2.55 | 0.55 |
+| Threshold | 3.00 (fixed, 3σ) | 0.65–0.71 (per-node p97.5) |
+| Headroom (threshold − p95) | 0.45 (17%) | ~0.10–0.15 (15–22%) |
+| LAN false alert rate | **0.08/hr** | 0.28/hr |
+| WiFi false alert rate | **0.25/hr** | 0.50/hr |
+| Nodes detected (5-exp suite) | 6/6 | 6/6 |
+| Anomaly windows (exp period) | 26 | 113 |
+| Detection approach | Univariate — fires if ANY metric >3σ | Multivariate — 9-feature joint distribution |
+
+**Model comparison key findings:**
+- EMA produces **3.5× fewer false alerts on LAN** and **2× fewer on WiFi** — better baseline precision
+- Both models detected all 6 nodes across the 5-experiment suite; no detection misses unique to either
+- IF captured **4.4× more anomaly windows per experiment** (113 vs 26) — higher multivariate sensitivity to sustained degradation
+- EMA fires faster on sharp single-metric spikes (first RTT spike >3σ); IF requires the full 120s window to fill
+- Model disagreements were almost entirely IF false positives during noisy WiFi baseline windows — EMA correctly ignored these (no single metric hit 3σ)
 
 #### Figure 1: Latency timeline (Grafana screenshot — one experiment run)
 - X axis: time. Y axis: HTTP latency ms.
@@ -239,9 +268,10 @@ Five experiments across two dimensions:
 
 ### 5.5 Results across experiments
 
-- Key claim: **MTTD decreases as fault severity increases** — the sensitivity curve.
-- Secondary: impact reduction is consistent across all 3 severities (~70%+) once failover is triggered.
-- Detection floor: Exp 3 (50ms/1%) may not trigger all nodes — that result honestly characterizes the system's limits.
+- **MTTD:** Governed by scoring interval, not fault severity. 30s windows reduce MTTD by 67% vs 120s. Larger faults produce higher scores but not faster detection timing.
+- **Detection floor:** 50ms/1% detectable on LAN (3/3); WiFi requires ≥100ms. WiFi natural jitter (~±20ms) absorbs 50ms delay signal within a 120s average window.
+- **Impact reduction:** 65–72% HTTP latency reduction consistent across all severities once failover triggers. Automated at 158s vs organic at 309s — 2× faster.
+- **Model comparison:** EMA z-score produces 3.5× fewer LAN false alerts (0.08 vs 0.28/hr) and 2× fewer WiFi false alerts (0.25 vs 0.50/hr). IF flags 4.4× more anomaly windows per experiment. Both detected all 6 nodes — no unique misses per model. IF is preferable for multivariate gradual degradation; EMA is preferable where false alert cost is high.
 
 ---
 

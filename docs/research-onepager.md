@@ -115,6 +115,25 @@ T+158s   HTTP latency recovers — 314ms → 109ms  (65% reduction)
 
 ---
 
+## Model Comparison — Isolation Forest vs EMA Z-Score (26-day baseline)
+
+Two detectors ran concurrently: **Isolation Forest** (9-feature multivariate, windowed) and **EMA Z-Score** (univariate per metric, rolling mean ± 3σ).
+
+| Metric | EMA Z-Score | Isolation Forest |
+|--------|:-----------:|:----------------:|
+| Baseline avg score | 1.17 | 0.38 |
+| Baseline p95 score | 2.55 | 0.55 |
+| Threshold | 3.00 (fixed 3σ) | 0.65–0.71 (p97.5 per node) |
+| **LAN false alert rate** | **0.08/hr** | 0.28/hr |
+| **WiFi false alert rate** | **0.25/hr** | 0.50/hr |
+| Nodes detected (5-exp suite) | 6/6 | 6/6 |
+| Anomaly windows flagged (exp period) | 26 | 113 |
+| Detection approach | Any single metric >3σ from EMA | Joint 9-feature anomaly score |
+
+**Key tradeoff:** EMA produces 3.5× fewer false alerts on LAN and 2× fewer on WiFi. IF flags 4.4× more windows per experiment — higher sensitivity to sustained multivariate degradation. Both detected all 6 nodes across the suite. Model disagreements were almost entirely IF false positives during noisy WiFi baseline that EMA correctly ignored.
+
+---
+
 ## Experimental Design Summary
 
 | Exp | Delay | Loss | Scoring | Detected | MTTD (first) | Purpose |
