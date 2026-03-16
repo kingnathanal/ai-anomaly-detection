@@ -649,7 +649,7 @@ docs/
 | 2026-03-02 | pi01-wifi went offline                    | Node unresponsive; ~5-day gap in telemetry (Mar 2–7) |
 | 2026-03-07 | Rebooted pi01-wifi; node back online      | Telemetry resumed; EMA detector warmup ~20 min |
 | 2026-03-07 | Fixed numpy type casting in EMA detector  | `numpy.bool_`/`float64` → `bool()`/`float()` before Postgres INSERT; cleared `__pycache__` |
-| 2026-03-07 | Tuned IF threshold p97.5 → p99.0          | Reduced false alert rate from ~7.9/hr to ~1/hr |
+| 2026-03-07 | Tuned IF threshold p97.5 → p99.0 (interim) | Tested p99 to reduce false alerts; later reverted — p99 over-corrects after baseline contamination |
 | 2026-03-10 | Deployed fault injection scripts to all 6 Pis | `netem_apply.sh`, `netem_clear.sh`, `scenarios.sh` → `/opt/edge-agent/fault_injection/`; inert until run |
 | 2026-03-15 | Rebooted pi02-wifi (elevated packet loss)          | 0% loss confirmed after reboot; 0.68% avg resolved |
 | 2026-03-15 | Expanded experiment plan to 2×3 design             | All 6 nodes now have planned experiments (was 4); ~3.5 hr window |
@@ -661,6 +661,11 @@ docs/
 | 2026-03-15 | Ran fault injection scenarios on all 6 nodes       | All nodes synchronized within ~1s; ground truth logs saved to `docs/screenshots/experiments/ground-truth/`; see phase table below |
 | 2026-03-15 | Deployed failover EC2 health endpoint              | Separate AWS instance (34.226.196.133); health app on port 8080; replaces co-located port 8082 backup |
 | 2026-03-15 | Updated edge agent .env — HTTP_URL_BACKUP          | Changed from `https://1.1.1.1` to `http://34.226.196.133:8080/health` on all 6 Pis |
+| 2026-03-16 | Completed 5-experiment canonical suite             | All 5 experiments run and committed; ground truth logs in `docs/screenshots/experiments/ground-truth/` |
+| 2026-03-16 | Fixed threshold contamination issue (Issue #11)    | p95 caused false positives; p99 caused missed detections after contaminated baseline; **p97.5 is the production default** |
+| 2026-03-16 | Final detector config: `SCORE_INTERVAL_S=120`, `THRESHOLD_PERCENTILE=97.5` | Reset from experiment settings (30s/p97.5) back to baseline production values |
+| 2026-03-16 | Stopped failover EC2 (34.226.196.133)              | Experiments complete; restart before any future fault injection runs |
+| 2026-03-16 | All 6 nodes reset to primary endpoint, 10s interval | Post-experiment cleanup; all nodes healthy on `telemetry/<node>/primary` |
 
 ### 2026-03-15 Experiment — Ground Truth Phase Timestamps (UTC)
 
@@ -673,3 +678,31 @@ docs/
 | recover_2 | 17:04:39Z | 17:06:39Z | 2 min |
 
 All 6 nodes ran simultaneously. WiFi → `wlan0`, LAN → `eth0`. All exited cleanly.
+
+---
+
+## Final Experiment Results Summary (All 5 Complete)
+
+| Exp | Fault | Scoring | Detected | MTTD (first) | Mitigation |
+|-----|-------|:-------:|:--------:|:------------:|:----------:|
+| 1 | 100ms ±20ms / 2% loss | 120s | 5/6 | 49s | ✅ failover |
+| 2 | 200ms ±40ms / 5% loss | 120s | 6/6 | 118s | ✅ failover |
+| 3 | 50ms ±10ms / 1% loss  | 120s | 3/6 (LAN) | 114s | ❌ (persist not met) |
+| 4r | 100ms ±20ms / 2% loss | **30s** | 4/6 | **16s** | ✅ failover (LAN) |
+| 5 | 200ms ±40ms / 4% loss | **30s** | 6/6 | **40s** | ✅ failover (all) |
+
+**Key findings:**
+- 30s scoring → 67% MTTD reduction vs 120s; tradeoff: higher WiFi miss rate on borderline faults
+- 50ms/1% is LAN detection floor; WiFi requires ≥100ms (natural jitter masks subtle faults)
+- `THRESHOLD_PERCENTILE=97.5` is robust to ~5% contaminated baseline (production default)
+- Automated failover reduces HTTP latency 65–72% within 10s of apply
+
+## Current System State (Post-Experiment)
+
+| Component | Setting | Notes |
+|-----------|---------|-------|
+| Detector `SCORE_INTERVAL_S` | `120` | Reset from 30s after experiments |
+| Detector `THRESHOLD_PERCENTILE` | `97.5` | Production default |
+| All 6 edge nodes | `primary` endpoint, 10s interval | Reset via `systemctl restart edge-probe` |
+| Failover EC2 (34.226.196.133) | **Stopped** | Restart before future fault injection experiments |
+| Primary EC2 | Running | Broker, ingestion, detector, mitigator all active |

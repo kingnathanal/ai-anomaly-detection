@@ -167,17 +167,40 @@ Launch command:
 cd /opt/edge-agent/fault_injection && sudo bash scenarios.sh -d 200 -j 40 -l 4 > /tmp/exp5-pi00.log 2>&1
 ```
 
-### Expected Metrics
+### Actual Results (All 5 Experiments Complete)
 
-| Metric | Exp 1 ✅ (100ms/2%, 120s) | Exp 2 ✅ (200ms/5%, 120s) | Exp 3 (50ms/1%, 120s) | Exp 4 (100ms/2%, 30s) | Exp 5 (200ms/4%, 30s) |
-|--------|--------------------------|--------------------------|----------------------|----------------------|----------------------|
-| Baseline HTTP | 80ms | 80ms | 80ms | 80ms | 80ms |
-| Fault HTTP | 273ms | 308ms | ~130ms | ~275ms | ~370ms |
-| Post-failover HTTP | 78ms | 78ms | ~80ms | ~78ms | ~78ms |
-| Impact reduction | 72% | ~87% | ~38% | ~72% | ~79% |
-| MTTD (actual/expected) | 49–92s | 118s | slow/miss? | **~15–30s** | **~15–30s** |
-| Nodes detected | 5/6 | **6/6** | TBD | TBD | TBD |
-| Notes | pi02-wifi missed | All detected | detection floor | MTTD comparison | MTTD comparison |
+| Metric | Exp 1 ✅ (100ms/2%, 120s) | Exp 2 ✅ (200ms/5%, 120s) | Exp 3 ✅ (50ms/1%, 120s) | Exp 4r ✅ (100ms/2%, 30s) | Exp 5 ✅ (200ms/4%, 30s) |
+|--------|--------------------------|--------------------------|-------------------------|--------------------------|--------------------------|
+| Baseline HTTP | 78ms | 80ms | 80ms | 80ms | 80ms |
+| Fault HTTP (avg) | 273ms | 308ms | ~130ms | ~280ms | 314ms |
+| Post-failover HTTP | 78ms | 78ms | N/A* | ~78ms | 109ms |
+| Impact reduction | 72% | ~75% | N/A* | ~72% | 65% |
+| MTTD (first detection) | 49s | 118s | 114s | **16s** | **40s** |
+| Nodes detected | 5/6 | 6/6 | 3/6 (LAN only) | 4/6 | 6/6 |
+| Notes | pi02-wifi missed | All simultaneous | WiFi in noise floor | WiFi missed at 30s | All simultaneous |
+
+> *Exp 3: Only 3/6 LAN nodes detected; `ANOMALY_PERSIST_WINDOWS=3` threshold not sustained across all nodes — mitigation not issued. No failover = no impact reduction measurement.
+> Exp 4r = Exp 4-redux: re-run after threshold contamination fix with clean baseline (p97.5).
+
+### MTTD by Node (Per-Experiment Breakdown)
+
+| Node | Type | Exp 1 · 120s | Exp 2 · 120s | Exp 3 · 120s | Exp 4r · 30s | Exp 5 · 30s |
+|------|------|:---:|:---:|:---:|:---:|:---:|
+| pi00-wifi | WiFi | 92s | 118s | ❌ | ❌ | 40s |
+| pi01-wifi | WiFi | 49s | 118s | ❌ | 76s | 40s |
+| pi02-wifi | WiFi | ❌ | 118s | ❌ | ❌ | 40s |
+| pi03-lan | LAN  | 49s | 118s | 114s | 46s | 40s |
+| pi04-lan | LAN  | 49s | 118s | 114s | **16s** | 40s |
+| pi05-lan | LAN  | 49s | 118s | 114s | 46s | 40s |
+
+### Scoring Interval Impact (Core Finding)
+
+| Fault | 120s Scoring | 30s Scoring | MTTD Δ | Detection Δ |
+|-------|:---:|:---:|:---:|:---:|
+| 100ms/2% | 49s · 5/6 | **16s** · 4/6 | **−67%** | −1 node (WiFi noise floor) |
+| 200ms/4% | 118s · 6/6 | **40s** · 6/6 | **−66%** | No change |
+
+> MTTD is governed by when the scoring cycle fires relative to fault injection — not fault severity. Larger faults produce higher scores, not faster detection.
 
 ### Pre-Experiment Checklist
 
@@ -292,16 +315,30 @@ sudo bash netem_clear.sh -i wlan0
 sudo bash netem_apply.sh -i eth0 -d 100 -j 20 -l 1
 ```
 
-## Expected Outcomes
+## Actual Outcomes (Final)
 
-| Injection           | Expected Detection | Expected Mitigation          |
-|---------------------|--------------------|------------------------------|
-| 100 ms delay        | MTTD < 5 min       | `failover_endpoint` issued   |
-| 2% packet loss      | MTTD < 5 min       | `failover_endpoint` issued   |
-| Clean (no fault)    | No alerts           | None                         |
+| Injection              | Detected      | MTTD (first) | Mitigation Issued |
+|------------------------|:-------------:|:------------:|:-----------------:|
+| 100ms/2% loss · 120s  | 5/6           | 49s          | ✅ failover_endpoint |
+| 200ms/5% loss · 120s  | 6/6           | 118s         | ✅ failover_endpoint |
+| 50ms/1% loss · 120s   | 3/6 (LAN)     | 114s         | ❌ (persist threshold not met) |
+| 100ms/2% loss · **30s** | 4/6         | **16s**      | ✅ failover_endpoint (LAN nodes) |
+| 200ms/4% loss · **30s** | 6/6         | **40s**      | ✅ failover_endpoint (all nodes) |
+| Clean baseline         | 0 false alerts | —           | None |
+
+## Key Findings
+
+1. **30s scoring windows reduce MTTD by 67%** vs 120s (49s → 16s first detection at 100ms fault)
+2. **MTTD is governed by scoring interval, not fault severity** — larger faults produce higher scores but not faster detection
+3. **50ms/1% is the LAN detection floor** — WiFi nodes require ≥100ms delay due to natural jitter in baseline
+4. **30s windows increase miss rate on borderline WiFi faults** — higher per-window score variance causes 4/6 instead of 5/6 detection
+5. **Automated failover reduces HTTP latency 65–72%** within 10 seconds of command apply
+6. **p97.5 is the optimal threshold percentile** — robust to ~5% contaminated baseline; p95 causes false positives on noisy WiFi, p99 causes missed detections after baseline contamination
+7. **Adaptive scoring (recommended)**: 120s default → drop to 30s on first anomaly for lowest MTTD without sacrificing detection rate
 
 ## Evaluation Metrics
 
-- **MTTD** — Mean Time to Detect (fault injection start → first anomaly event)
-- **False alert rate** — anomaly events per hour during baseline
-- **Impact reduction** — compare p95 latency before vs. after mitigation
+- **MTTD** — Mean Time to Detect (fault injection start → first anomaly event per node)
+- **False alert rate** — anomaly events per hour during clean baseline (target: 0)
+- **Impact reduction** — mean + p95 HTTP latency before vs. after mitigation apply
+- **Detection rate** — fraction of nodes that detected the fault (out of 6)
